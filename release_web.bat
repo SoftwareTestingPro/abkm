@@ -25,7 +25,7 @@ echo %BUILD_ID% > source\web\build_id.txt
 echo %BUILD_ID% > source\assets\images\build_id.txt
 
 cd source
-call flutter build web --base-href "/abkm/" --release
+call flutter build web --base-href "/" --release
 if %ERRORLEVEL% NEQ 0 goto :error
 cd ..
 
@@ -40,7 +40,7 @@ echo   WEB RELEASE BUILD COMPLETE!
 echo ============================================================
 echo.
 echo WEB: Ready for commit/push. 
-echo URL: https://Intellicast.github.io/abkm/
+echo URL: https://abkm.futurelab.co.in/
 echo.
 echo ============================================================
 pause
