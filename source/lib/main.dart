@@ -7,11 +7,15 @@ import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/web_utils.dart';
+import 'services/analytics_service.dart';
 
 import 'config/config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize analytics tracking
+  AnalyticsService.init();
   
   // Cleanly check for and activate web updates for existing logged-in sessions
   await performWebUpdateCheck();
