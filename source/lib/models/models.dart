@@ -41,6 +41,10 @@ class ABKMUser {
   final int referralCount;
   final DateTime? lastLogin;
   final String? blockedBy;
+  final String? aadharFrontUrl;
+  final String? aadharBackUrl;
+  final String? googleId;
+  final String? email;
 
   ABKMUser({
     required this.id,
@@ -66,6 +70,10 @@ class ABKMUser {
     this.referralCount = 0,
     this.lastLogin,
     this.blockedBy,
+    this.aadharFrontUrl,
+    this.aadharBackUrl,
+    this.googleId,
+    this.email,
   });
 
   int get age {
@@ -85,7 +93,7 @@ class ABKMUser {
     'name': name,
     'gender': gender,
     'marital_status': maritalStatus,
-    'dob': dob?.toIso8601String(),
+    'dob': dob?.toUtc().toIso8601String(),
     'user_role': userRole.index,
     'bio': bio,
     'profile_image_url': profileImageUrl,
@@ -104,6 +112,10 @@ class ABKMUser {
     'referral_count': referralCount,
     'last_login': lastLogin?.toUtc().toIso8601String(),
     'blocked_by': blockedBy,
+    'aadhar_front_url': aadharFrontUrl,
+    'aadhar_back_url': aadharBackUrl,
+    'google_id': googleId,
+    'email': email,
   };
 
   factory ABKMUser.fromJson(Map<String, dynamic> json) => ABKMUser(
@@ -132,6 +144,10 @@ class ABKMUser {
     referralCount: json['referral_count'] ?? json['referralCount'] ?? 0,
     lastLogin: json['last_login'] != null ? DateTime.parse(json['last_login']).toLocal() : null,
     blockedBy: json['blocked_by'] ?? json['blockedBy'],
+    aadharFrontUrl: json['aadhar_front_url'] ?? json['aadharFrontUrl'],
+    aadharBackUrl: json['aadhar_back_url'] ?? json['aadharBackUrl'],
+    googleId: json['google_id'] ?? json['googleId'],
+    email: json['email'],
   );
 
   ABKMUser copyWith({
@@ -158,6 +174,10 @@ class ABKMUser {
     int? referralCount,
     DateTime? lastLogin,
     String? blockedBy,
+    String? aadharFrontUrl,
+    String? aadharBackUrl,
+    String? googleId,
+    String? email,
   }) {
     return ABKMUser(
       id: id ?? this.id,
@@ -183,6 +203,10 @@ class ABKMUser {
       referralCount: referralCount ?? this.referralCount,
       lastLogin: lastLogin ?? this.lastLogin,
       blockedBy: blockedBy ?? this.blockedBy,
+      aadharFrontUrl: aadharFrontUrl ?? this.aadharFrontUrl,
+      aadharBackUrl: aadharBackUrl ?? this.aadharBackUrl,
+      googleId: googleId ?? this.googleId,
+      email: email ?? this.email,
     );
   }
 }

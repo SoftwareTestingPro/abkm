@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
 import '../services/supabase_service.dart';
 import '../services/logic_service.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -28,6 +29,63 @@ class _AuthScreenState extends State<AuthScreen> {
     super.didChangeDependencies();
     // Pre-cache the background image for smoother transition
     precacheImage(const AssetImage('assets/images/app_background.png'), context);
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+    try {
+      final googleSignIn = GoogleSignIn(
+        scopes: ['email'],
+      );
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final cloudProfile = await SupabaseService().getProfileByGoogleId(googleUser.id);
+      final prefs = await SharedPreferences.getInstance();
+
+      if (cloudProfile != null) {
+        await prefs.setString('abkm_mobileNumber', cloudProfile.id);
+        await prefs.setBool('abkm_hasProfile', true);
+        await prefs.setBool('abkm_isLoggedIn', true);
+        await prefs.setInt('abkm_user_role', cloudProfile.userRole.index);
+        await SupabaseService().updateLastLogin(cloudProfile.id);
+
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+      } else {
+        final tempUser = ABKMUser(
+          id: '',
+          name: googleUser.displayName ?? '',
+          profileImageUrl: googleUser.photoUrl,
+          email: googleUser.email,
+          googleId: googleUser.id,
+          userRole: UserRole.member,
+          bio: '',
+          gender: 'Select Gender',
+        );
+
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/profile',
+          (route) => false,
+          arguments: tempUser,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error signing in with Google: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Google Sign-In failed: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   Future<void> _sendOtp() async {
@@ -337,45 +395,44 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _isOtpSent ? 'Enter the OTP sent to your phone' : 'शिक्षित बनो, संगठित रहो, संघर्ष करो',
+                      'शिक्षित बनो, संगठित रहो, संघर्ष करो',
                       style: GoogleFonts.inter(color: Colors.grey[600]),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 8),
-                    if (!_isOtpSent) ...[
-                      _buildTextField(
-                        controller: _phoneController,
-                        hint: '4-Digit Mobile Number',
-                        icon: Icons.phone_android,
-                        keyboardType: TextInputType.phone,
-                        maxLength: 4,
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: OutlinedButton(
+                        onPressed: _signInWithGoogle,
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.grey[300]!),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          backgroundColor: Colors.white,
+                          elevation: 0,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Image.network(
+                              'https://developers.google.com/static/identity/images/g-logo.png',
+                              height: 24,
+                              width: 24,
+                              errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, color: Colors.blue, size: 24),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Continue with Google',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 24),
-                      _buildButton(
-                        text: 'Send OTP',
-                        onPressed: _sendOtp,
-                      ),
-                    ] else ...[
-                      _buildTextField(
-                        controller: _otpController,
-                        hint: 'Enter 4-digit OTP',
-                        icon: Icons.lock_outline,
-                        keyboardType: TextInputType.number,
-                        maxLength: 4,
-                      ),
-                      const SizedBox(height: 24),
-                      _buildButton(
-                        text: 'Verify & Login',
-                        onPressed: _verifyOtp,
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          _otpController.clear();
-                          setState(() => _isOtpSent = false);
-                        },
-                        child: const Text('Change Number'),
-                      ),
-                    ],
+                    ),
                     const SizedBox(height: 16),
                     TextButton(
                       onPressed: () => _showPrivacyPolicy(context),

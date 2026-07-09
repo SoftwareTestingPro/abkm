@@ -74,9 +74,39 @@ class CacheLogic {
         map['profileImageUrl'] = null; 
       }
     }
+    if (map.containsKey('profile_image_url') && map['profile_image_url'] != null) {
+      if (map['profile_image_url'].toString().length > 1000) {
+        map['profile_image_url'] = null; 
+      }
+    }
     if (map.containsKey('imageUrl') && map['imageUrl'] != null) {
       if (map['imageUrl'].toString().length > 1000) {
         map['imageUrl'] = null;
+      }
+    }
+    if (map.containsKey('image_url') && map['image_url'] != null) {
+      if (map['image_url'].toString().length > 1000) {
+        map['image_url'] = null;
+      }
+    }
+    if (map.containsKey('aadharFrontUrl') && map['aadharFrontUrl'] != null) {
+      if (map['aadharFrontUrl'].toString().length > 1000) {
+        map['aadharFrontUrl'] = null;
+      }
+    }
+    if (map.containsKey('aadhar_front_url') && map['aadhar_front_url'] != null) {
+      if (map['aadhar_front_url'].toString().length > 1000) {
+        map['aadhar_front_url'] = null;
+      }
+    }
+    if (map.containsKey('aadharBackUrl') && map['aadharBackUrl'] != null) {
+      if (map['aadharBackUrl'].toString().length > 1000) {
+        map['aadharBackUrl'] = null;
+      }
+    }
+    if (map.containsKey('aadhar_back_url') && map['aadhar_back_url'] != null) {
+      if (map['aadhar_back_url'].toString().length > 1000) {
+        map['aadhar_back_url'] = null;
       }
     }
     return map;

@@ -47,6 +47,10 @@ class SupabaseService {
       'is_deleted': user.isDeleted,
       'last_login': _getIstIsoString(user.lastLogin),
       'blocked_by': user.blockedBy,
+      'aadhar_front_url': user.aadharFrontUrl,
+      'aadhar_back_url': user.aadharBackUrl,
+      'google_id': user.googleId,
+      'email': user.email,
     });
     
     final prefs = await SharedPreferences.getInstance();
@@ -317,14 +321,79 @@ class SupabaseService {
       referralCount: referralCount,
       lastLogin: response['last_login'] != null ? DateTime.parse(response['last_login']).toLocal() : null,
       blockedBy: response['blocked_by'],
+      aadharFrontUrl: response['aadhar_front_url'],
+      aadharBackUrl: response['aadhar_back_url'],
+      googleId: response['google_id'],
+      email: response['email'],
     );
 
     debugPrint('SupabaseService: getProfile($userId) final mapped position: ${user.position}');
 
     final String cacheKey = 'abkm_full_profile_$userId';
-    await prefs.setString(cacheKey, json.encode(user.toJson()));
+    await prefs.setString(cacheKey, CacheLogic.getStrippedJson(user));
     await CacheLogic.markTimestamp(prefs, cacheKey);
     return user;
+  }
+
+  Future<ABKMUser?> getProfileByGoogleId(String googleId) async {
+    try {
+      final response = await client
+          .from('profiles')
+          .select()
+          .eq('google_id', googleId)
+          .or('is_deleted.eq.false,is_deleted.is.null')
+          .maybeSingle()
+          .timeout(const Duration(seconds: 10));
+
+      if (response == null) return null;
+
+      final userId = response['id'];
+      final countResponse = await client
+          .from('profiles')
+          .select('id')
+          .eq('referral_mobile', userId)
+          .or('is_deleted.eq.false,is_deleted.is.null');
+      final referralCount = (countResponse as List).length;
+      final points = referralCount * 5;
+
+      String position = response['position'] ?? 'Member';
+      final String userRoleStr = response['user_role']?.toString() ?? '0';
+      final int userRoleInt = int.tryParse(userRoleStr) ?? 0;
+      final uRole = userRoleInt < UserRole.values.length ? UserRole.values[userRoleInt] : UserRole.member;
+
+      return ABKMUser(
+        id: response['id'],
+        name: response['name'] ?? 'Anonymous',
+        gender: response['gender'] ?? 'Other',
+        maritalStatus: response['marital_status'],
+        dob: response['dob'] != null ? DateTime.parse(response['dob']) : null,
+        userRole: uRole,
+        bio: response['bio'] ?? '',
+        profileImageUrl: response['profile_image_url'],
+        state: response['state'] ?? '',
+        district: response['district'] ?? '',
+        tehsil: response['tehsil'] ?? '',
+        village: response['village'] ?? '',
+        sector: response['sector'] ?? '',
+        profession: response['profession'] ?? '',
+        education: response['education'] ?? '',
+        referralMobile: response['referral_mobile'],
+        position: position,
+        isBlocked: response['is_blocked'] ?? false,
+        isDeleted: response['is_deleted'] ?? false,
+        points: points,
+        referralCount: referralCount,
+        lastLogin: response['last_login'] != null ? DateTime.parse(response['last_login']).toLocal() : null,
+        blockedBy: response['blocked_by'],
+        aadharFrontUrl: response['aadhar_front_url'],
+        aadharBackUrl: response['aadhar_back_url'],
+        googleId: response['google_id'],
+        email: response['email'],
+      );
+    } catch (e) {
+      debugPrint('Error getting profile by Google ID: $e');
+      return null;
+    }
   }
 
   Future<ABKMUser?> getNationalPresident() async {
@@ -718,6 +787,10 @@ class SupabaseService {
         blockedBy: p['blocked_by'],
         points: pts,
         referralCount: refCount,
+        aadharFrontUrl: p['aadhar_front_url'],
+        aadharBackUrl: p['aadhar_back_url'],
+        googleId: p['google_id'],
+        email: p['email'],
       );
     }).toList().cast<ABKMUser>();
   }

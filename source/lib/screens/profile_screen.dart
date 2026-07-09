@@ -38,6 +38,9 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
   final _bioController = TextEditingController();
+  String? _googleId;
+  String? _email;
+  final _mobileController = TextEditingController();
   final _stateController = TextEditingController();
   final _professionController = TextEditingController();
   final _educationController = TextEditingController();
@@ -98,6 +101,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _selectedGender = 'Select Gender';
   final _ageController = TextEditingController();
   String? _base64Image;
+  String? _aadharFrontBase64;
+  String? _aadharBackBase64;
   UserRole _currentUserRole = UserRole.member;
   UserRole _loggedInUserRole = UserRole.member;
   String _userPosition = 'Member';
@@ -187,6 +192,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _initialAge;
   String? _initialReferralMobile;
   String? _initialBase64Image;
+  String? _initialAadharFrontBase64;
+  String? _initialAadharBackBase64;
 
   void _captureInitialValues() {
     _initialName = _nameController.text;
@@ -204,6 +211,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _initialAge = _ageController.text;
     _initialReferralMobile = _referralMobileController.text;
     _initialBase64Image = _base64Image;
+    _initialAadharFrontBase64 = _aadharFrontBase64;
+    _initialAadharBackBase64 = _aadharBackBase64;
   }
 
   void _restoreInitialValues() {
@@ -222,6 +231,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _ageController.text = _initialAge ?? '';
     _referralMobileController.text = _initialReferralMobile ?? '';
     _base64Image = _initialBase64Image;
+    _aadharFrontBase64 = _initialAadharFrontBase64;
+    _aadharBackBase64 = _initialAadharBackBase64;
     _parseAndSetEducation(_educationController.text);
     _parseAndSetProfession(_selectedSector, _professionController.text);
     if (mounted) setState(() {});
@@ -245,6 +256,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final ageChanged = _ageController.text.trim() != (_initialAge ?? '').trim();
     final referralMobileChanged = _referralMobileController.text.trim() != (_initialReferralMobile ?? '').trim();
     final imageChanged = _base64Image != _initialBase64Image;
+    final aadharFrontChanged = _aadharFrontBase64 != _initialAadharFrontBase64;
+    final aadharBackChanged = _aadharBackBase64 != _initialAadharBackBase64;
 
     return nameChanged ||
         bioChanged ||
@@ -260,7 +273,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         dobChanged ||
         ageChanged ||
         referralMobileChanged ||
-        imageChanged;
+        imageChanged ||
+        aadharFrontChanged ||
+        aadharBackChanged;
   }
 
   bool get _isReferralEditable => !_hasExistingProfile;
@@ -308,7 +323,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _checkAuth() async {
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getString('abkm_mobileNumber') == null) {
+    
+    bool isGoogleRegistration = false;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is ABKMUser && args.googleId != null && args.googleId!.isNotEmpty) {
+      isGoogleRegistration = true;
+    }
+    
+    if (prefs.getString('abkm_mobileNumber') == null && !isGoogleRegistration) {
       if (!mounted) return;
       Navigator.of(context).pushNamedAndRemoveUntil('/auth', (route) => false);
     }
@@ -317,6 +339,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _mobileController.dispose();
     _bioController.dispose();
     _stateController.dispose();
     _professionController.dispose();
@@ -353,12 +376,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final roleIndex = prefs.getInt('abkm_user_role') ?? 0;
       _loggedInUserRole = UserRole.values[roleIndex];
 
+      ABKMUser? routeUser = widget.user;
+      if (routeUser == null) {
+        final args = ModalRoute.of(context)?.settings.arguments;
+        if (args is ABKMUser) {
+          routeUser = args;
+        }
+      }
+
+      if (routeUser != null && routeUser.id.isEmpty) {
+        _hasExistingProfile = false;
+        _isEditUnlocked = true;
+        _nameController.text = routeUser.name;
+        _base64Image = routeUser.profileImageUrl;
+        _googleId = routeUser.googleId;
+        _email = routeUser.email;
+        _mobileNumber = '';
+        _mobileController.text = '';
+        
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _captureInitialValues();
+          });
+        }
+        return;
+      }
+
       SupabaseService().getProfile(_loggedInMobile).then((p) {
         if (mounted) {
           setState(() {
             _loggedInUserProfile = p;
             if (p != null) {
               _loggedInState = p.state;
+              _loggedInUserRole = p.userRole;
+              prefs.setInt('abkm_user_role', p.userRole.index);
             }
           });
         }
@@ -387,6 +439,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _ageController.text = u.age.toString();
         _selectedGender = u.gender.isNotEmpty ? u.gender : 'Select Gender';
         _base64Image = u.profileImageUrl;
+        _aadharFrontBase64 = u.aadharFrontUrl;
+        _aadharBackBase64 = u.aadharBackUrl;
         _selectedSector = u.sector.isNotEmpty ? u.sector : 'Select Sector';
         _professionController.text = u.profession;
         _educationController.text = u.education;
@@ -428,6 +482,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _parseAndSetProfession(cloudProfile.sector, cloudProfile.profession);
               _userPosition = cloudProfile.position;
               _currentUserRole = cloudProfile.userRole;
+              _aadharFrontBase64 = cloudProfile.aadharFrontUrl;
+              _aadharBackBase64 = cloudProfile.aadharBackUrl;
+              debugPrint('DEBUG: Loaded cloudProfile for ${u.id}: aadharFront=${cloudProfile.aadharFrontUrl != null ? "length ${cloudProfile.aadharFrontUrl!.length}" : "null"}, aadharBack=${cloudProfile.aadharBackUrl != null ? "length ${cloudProfile.aadharBackUrl!.length}" : "null"}');
 
               if (_referralMobileController.text.isEmpty && cloudProfile.referralMobile != null) {
                 _referralMobileController.text = cloudProfile.referralMobile!;
@@ -493,6 +550,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _referralCount = cachedProfile.referralCount;
           _points = cachedProfile.points;
           _lastLogin = cachedProfile.lastLogin;
+          _aadharFrontBase64 = cachedProfile.aadharFrontUrl;
+          _aadharBackBase64 = cachedProfile.aadharBackUrl;
         } catch (cacheErr) {
           debugPrint('Error parsing cached profile: $cacheErr');
         }
@@ -510,6 +569,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _parseAndSetEducation(prefs.getString('abkm_userEducation') ?? '');
         _parseAndSetProfession(prefs.getString('abkm_userSector') ?? 'Select Sector', prefs.getString('abkm_userProfession') ?? '');
         _base64Image = prefs.getString('abkm_userImageBase64');
+        _aadharFrontBase64 = prefs.getString('abkm_userAadharFrontBase64');
+        _aadharBackBase64 = prefs.getString('abkm_userAadharBackBase64');
         _selectedGender = prefs.getString('abkm_userGender') ?? 'Select Gender';
         final savedAge = prefs.getInt('abkm_userAge');
         _ageController.text = savedAge != null ? savedAge.toString() : '';
@@ -555,6 +616,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _referralCount = cloudProfile.referralCount;
           _points = cloudProfile.points;
           _lastLogin = cloudProfile.lastLogin;
+          _aadharFrontBase64 = cloudProfile.aadharFrontUrl;
+          _aadharBackBase64 = cloudProfile.aadharBackUrl;
           
           if (mounted) {
             setState(() {
@@ -727,6 +790,109 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  Future<void> _pickAadharImage(bool isFront) async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(isFront ? 'Choose Aadhar Front Photo' : 'Choose Aadhar Back Photo', 
+                 style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Colors.blue),
+              title: const Text('Upload from Gallery'),
+              onTap: () async {
+                Navigator.pop(context);
+                final XFile? image = await _picker.pickImage(
+                  source: ImageSource.gallery,
+                  imageQuality: 40,
+                  maxWidth: 800,
+                );
+                if (image != null) {
+                  final bytes = await image.readAsBytes();
+                  setState(() {
+                    if (isFront) {
+                      _aadharFrontBase64 = base64Encode(bytes);
+                    } else {
+                      _aadharBackBase64 = base64Encode(bytes);
+                    }
+                  });
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Colors.green),
+              title: const Text('Capture with Camera'),
+              onTap: () async {
+                Navigator.pop(context);
+                final XFile? image = await _picker.pickImage(
+                  source: ImageSource.camera,
+                  imageQuality: 40,
+                  maxWidth: 800,
+                );
+                if (image != null) {
+                  final bytes = await image.readAsBytes();
+                  setState(() {
+                    if (isFront) {
+                      _aadharFrontBase64 = base64Encode(bytes);
+                    } else {
+                      _aadharBackBase64 = base64Encode(bytes);
+                    }
+                  });
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _viewFullScreenImage(String title, String base64Image) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.black87,
+        insetPadding: const EdgeInsets.all(10),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            InteractiveViewer(
+              panEnabled: true,
+              boundaryMargin: const EdgeInsets.all(20),
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: base64Image.startsWith('http')
+                ? Image.network(base64Image, fit: BoxFit.contain)
+                : Image.memory(base64Decode(base64Image), fit: BoxFit.contain),
+            ),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            Positioned(
+              top: 15,
+              left: 20,
+              child: Text(
+                title,
+                style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _scrollToField(String field) {
     setState(() => _errorField = field);
     switch (field) {
@@ -745,10 +911,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _saveProfile() async {
     setState(() => _errorField = null);
 
+    if (_googleId != null && _mobileNumber.isEmpty) {
+      final inputMobile = _mobileController.text.trim();
+      if (inputMobile.isEmpty) {
+        _scrollToField('mobileNumber');
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter your 10-digit mobile number')));
+        return;
+      }
+      if (inputMobile.length != 10 || int.tryParse(inputMobile) == null) {
+        _scrollToField('mobileNumber');
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a valid 10-digit mobile number')));
+        return;
+      }
+
+      setState(() => _isLoading = true);
+      try {
+        final existingProfile = await SupabaseService().getProfile(inputMobile, forceRefresh: true);
+        if (existingProfile != null) {
+          final linkedUser = existingProfile.copyWith(
+            googleId: _googleId,
+            email: _email,
+          );
+          await SupabaseService().upsertProfile(linkedUser);
+
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('abkm_mobileNumber', linkedUser.id);
+          await prefs.setInt('abkm_user_role', linkedUser.userRole.index);
+          await prefs.setBool('abkm_hasProfile', true);
+          await prefs.setBool('abkm_isLoggedIn', true);
+          await SupabaseService().updateLastLogin(linkedUser.id);
+
+          if (!mounted) return;
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Linked your Google account to existing profile!')));
+          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+          return;
+        } else {
+          _mobileNumber = inputMobile;
+        }
+      } catch (e) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error validating mobile: $e')));
+        return;
+      }
+    }
+
     if (_base64Image == null) {
       _scrollToField('image');
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please upload a profile picture')));
       return;
+    }
+    if (!_hasExistingProfile) {
+      if (_aadharFrontBase64 == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please upload the front side of your Aadhar card')));
+        return;
+      }
+      if (_aadharBackBase64 == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please upload the back side of your Aadhar card')));
+        return;
+      }
     }
     if (_nameController.text.trim().isEmpty) {
       _scrollToField('name');
@@ -906,9 +1127,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       final currentLoggedInNumber = prefs.getString('abkm_mobileNumber');
       final targetId = widget.user?.id ?? _mobileNumber;
-      final bool isOwnProfile = targetId == currentLoggedInNumber;
+      final bool isOwnProfile = targetId == currentLoggedInNumber || (_googleId != null && currentLoggedInNumber == null);
 
       if (isOwnProfile || widget.user == null) {
+        await prefs.setString('abkm_mobileNumber', _mobileNumber);
         await prefs.setString('abkm_userName', _nameController.text);
         await prefs.setString('abkm_userBio', _bioController.text);
         await prefs.setString('abkm_userState', _stateController.text);
@@ -916,6 +1138,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await prefs.setString('abkm_userProfession', _professionController.text);
         await prefs.setString('abkm_userEducation', _educationController.text);
         if (_base64Image != null) await prefs.setString('abkm_userImageBase64', _base64Image!);
+        if (_aadharFrontBase64 != null) await prefs.setString('abkm_userAadharFrontBase64', _aadharFrontBase64!);
+        if (_aadharBackBase64 != null) await prefs.setString('abkm_userAadharBackBase64', _aadharBackBase64!);
         await prefs.setString('abkm_userGender', _selectedGender);
         await prefs.setInt('abkm_userAge', int.tryParse(_ageController.text) ?? 0);
         await prefs.setBool('abkm_hasProfile', true);
@@ -949,6 +1173,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         position: _userPosition,
         maritalStatus: _maritalStatus,
         dob: _selectedDOB,
+        aadharFrontUrl: _aadharFrontBase64,
+        aadharBackUrl: _aadharBackBase64,
+        googleId: _googleId,
+        email: _email,
       );
       
       debugPrint('Saving profile to Supabase: ${user.id} | Profession: ${user.profession} | Sector: ${user.sector}');
@@ -1357,6 +1585,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
             const SizedBox(height: 32),
+            if (_googleId != null && _mobileNumber.isEmpty) ...[
+              _buildLabel('10-Digit Mobile Number'),
+              _buildTextField(
+                controller: _mobileController,
+                hint: '10-Digit Mobile Number',
+                icon: Icons.phone_android,
+                keyboardType: TextInputType.phone,
+                fieldKey: 'mobileNumber',
+              ),
+              const SizedBox(height: 20),
+            ],
             _buildLabel('Full Name'),
             _buildTextField(
               controller: _nameController, 
@@ -1433,6 +1672,165 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 20),
               _buildPointsAndPromotionSection(theme),
             ],
+
+            Builder(
+              builder: (context) {
+                final bool isOwnProfile = widget.user == null || _loggedInMobile == widget.user!.id;
+                final bool isAdmin = _loggedInUserRole == UserRole.admin || _loggedInUserRole == UserRole.superUser;
+                final bool canSeeAadhar = isOwnProfile || isAdmin;
+                if (!canSeeAadhar) return const SizedBox.shrink();
+
+                final bool isEditable = !_hasExistingProfile || _isEditUnlocked;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 20),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: RichText(
+                        text: TextSpan(
+                          text: 'Aadhar Card Verification',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black),
+                          children: [
+                            if (!_hasExistingProfile)
+                              const TextSpan(
+                                text: ' * (Required for registration)',
+                                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Front Side', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[700])),
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                onTap: _aadharFrontBase64 != null
+                                    ? () => _viewFullScreenImage('Aadhar Card Front Side', _aadharFrontBase64!)
+                                    : null,
+                                child: Container(
+                                  height: 120,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[50],
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: Colors.grey[300]!),
+                                  ),
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      if (_aadharFrontBase64 != null)
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(15),
+                                          child: _aadharFrontBase64!.startsWith('http')
+                                              ? Image.network(_aadharFrontBase64!, width: double.infinity, height: double.infinity, fit: BoxFit.cover)
+                                              : Image.memory(base64Decode(_aadharFrontBase64!), width: double.infinity, height: double.infinity, fit: BoxFit.cover),
+                                        )
+                                      else
+                                        Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.credit_card, size: 36, color: Colors.grey[400]),
+                                            const SizedBox(height: 4),
+                                            Text('No image uploaded', style: GoogleFonts.inter(fontSize: 10, color: Colors.grey[500])),
+                                          ],
+                                        ),
+                                      if (isOwnProfile && isEditable)
+                                        Positioned(
+                                          bottom: 8,
+                                          right: 8,
+                                          child: InkWell(
+                                            onTap: () => _pickAadharImage(true),
+                                            child: CircleAvatar(
+                                              radius: 18,
+                                              backgroundColor: theme.colorScheme.primary,
+                                              child: Icon(
+                                                _aadharFrontBase64 != null ? Icons.sync : Icons.add_a_photo, 
+                                                size: 16, 
+                                                color: Colors.white
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Back Side', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[700])),
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                onTap: _aadharBackBase64 != null
+                                    ? () => _viewFullScreenImage('Aadhar Card Back Side', _aadharBackBase64!)
+                                    : null,
+                                child: Container(
+                                  height: 120,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[50],
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: Colors.grey[300]!),
+                                  ),
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      if (_aadharBackBase64 != null)
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(15),
+                                          child: _aadharBackBase64!.startsWith('http')
+                                              ? Image.network(_aadharBackBase64!, width: double.infinity, height: double.infinity, fit: BoxFit.cover)
+                                              : Image.memory(base64Decode(_aadharBackBase64!), width: double.infinity, height: double.infinity, fit: BoxFit.cover),
+                                        )
+                                      else
+                                        Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.credit_card, size: 36, color: Colors.grey[400]),
+                                            const SizedBox(height: 4),
+                                            Text('No image uploaded', style: GoogleFonts.inter(fontSize: 10, color: Colors.grey[500])),
+                                          ],
+                                        ),
+                                      if (isOwnProfile && isEditable)
+                                        Positioned(
+                                          bottom: 8,
+                                          right: 8,
+                                          child: InkWell(
+                                            onTap: () => _pickAadharImage(false),
+                                            child: CircleAvatar(
+                                              radius: 18,
+                                              backgroundColor: theme.colorScheme.primary,
+                                              child: Icon(
+                                                _aadharBackBase64 != null ? Icons.sync : Icons.add_a_photo, 
+                                                size: 16, 
+                                                color: Colors.white
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
 
             const SizedBox(height: 20),
             Padding(
