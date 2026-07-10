@@ -3,6 +3,9 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import '../config/config.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1101,10 +1104,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     if (referralMobile.isNotEmpty) {
-      if (referralMobile.length != 4) {
+      if (referralMobile.length != 10) {
         setState(() => _isLoading = false);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Referral mobile must be exactly 4 digits')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Referral mobile must be exactly 10 digits')));
         }
         return;
       }
@@ -1446,6 +1449,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (isOwnProfile) {
                 return TextButton(
                   onPressed: () async {
+                    try {
+                      final googleSignIn = GoogleSignIn(
+                        clientId: kIsWeb ? AppConfig.googleWebClientId : null,
+                        scopes: ['email'],
+                      );
+                      await googleSignIn.signOut();
+                    } catch (e) {
+                      debugPrint('Error signing out from Google: $e');
+                    }
                     final prefs = await SharedPreferences.getInstance();
                     final keys = prefs.getKeys();
                     for (String key in keys) {
@@ -1494,14 +1506,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   CircleAvatar(
                     radius: 60,
                     backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                    backgroundImage: _base64Image != null && _base64Image!.startsWith('http')
-                      ? NetworkImage(_base64Image!) as ImageProvider
-                      : _base64Image != null 
-                        ? MemoryImage(base64Decode(_base64Image!)) 
-                        : null,
+                    backgroundImage: _base64Image != null && !_base64Image!.startsWith('http')
+                      ? MemoryImage(base64Decode(_base64Image!)) as ImageProvider
+                      : null,
                     child: _base64Image == null 
                       ? Icon(Icons.person, size: 60, color: theme.colorScheme.primary)
-                      : null,
+                      : _base64Image!.startsWith('http')
+                        ? ClipOval(
+                            child: Image.network(
+                              _base64Image!,
+                              width: 120,
+                              height: 120,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Icon(Icons.person, size: 60, color: theme.colorScheme.primary),
+                            ),
+                          )
+                        : null,
                   ),
                   if (!_hasExistingProfile || _isEditUnlocked)
                     Positioned(
@@ -1864,11 +1884,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             _buildTextField(
               controller: _referralMobileController,
-              hint: 'Enter 4 digit mobile number',
+              hint: 'Enter 10-digit mobile number',
               icon: Icons.person_add_alt_1_outlined,
               keyboardType: TextInputType.phone,
               fillColor: Colors.white,
               enabled: _isReferralEditable,
+              maxLength: 10,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             ),
             const SizedBox(height: 40),
             if (widget.user == null || _loggedInMobile == widget.user!.id) ...[
@@ -3040,13 +3062,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           leading: CircleAvatar(
                             radius: 22,
                             backgroundColor: Colors.blue[50]!,
-                            backgroundImage: _getAvatarImage(u.profileImageUrl),
-                            child: _getAvatarImage(u.profileImageUrl) == null
+                            backgroundImage: u.profileImageUrl != null && !u.profileImageUrl!.startsWith('http')
+                                ? _getAvatarImage(u.profileImageUrl)
+                                : null,
+                            child: u.profileImageUrl == null || u.profileImageUrl!.isEmpty
                                 ? Text(
                                     u.name.isNotEmpty ? u.name.substring(0, 1).toUpperCase() : '?',
                                     style: TextStyle(color: Colors.blue[800], fontWeight: FontWeight.bold),
                                   )
-                                : null,
+                                : u.profileImageUrl!.startsWith('http')
+                                    ? ClipOval(
+                                        child: Image.network(
+                                          u.profileImageUrl!,
+                                          width: 44,
+                                          height: 44,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) => Text(
+                                            u.name.isNotEmpty ? u.name.substring(0, 1).toUpperCase() : '?',
+                                            style: TextStyle(color: Colors.blue[800], fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      )
+                                    : null,
                           ),
                           title: Text(
                             u.name,

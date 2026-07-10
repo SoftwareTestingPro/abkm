@@ -1,6 +1,8 @@
 import 'dart:ui' as ui;
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -2126,6 +2128,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _logout(BuildContext context) async {
+    try {
+      final googleSignIn = GoogleSignIn(
+        clientId: kIsWeb ? AppConfig.googleWebClientId : null,
+        scopes: ['email'],
+      );
+      await googleSignIn.signOut();
+    } catch (e) {
+      debugPrint('Error signing out from Google: $e');
+    }
     final prefs = await SharedPreferences.getInstance();
     final keys = prefs.getKeys();
     for (String key in keys) {
