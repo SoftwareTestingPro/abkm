@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
@@ -920,7 +921,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
       if (inputMobile.length != 10 || int.tryParse(inputMobile) == null) {
         _scrollToField('mobileNumber');
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a valid 10-digit mobile number')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid mobile number. Please enter exactly 10 digits.')));
         return;
       }
 
@@ -1413,13 +1414,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   },
                   icon: Icon(
                     _isEditUnlocked ? Icons.lock : Icons.edit,
-                    color: Colors.white,
+                    color: Colors.black,
                     size: 18,
                   ),
                   label: Text(
                     _isEditUnlocked ? 'Lock' : 'Edit',
                     style: GoogleFonts.inter(
-                      color: Colors.white,
+                      color: Colors.black,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
@@ -1451,13 +1452,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Text(
                         'Logout',
                         style: GoogleFonts.inter(
-                          color: Colors.white,
+                          color: Colors.black,
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Icon(Icons.logout, color: Colors.white, size: 20),
+                      const Icon(Icons.logout, color: Colors.black, size: 20),
                     ],
                   ),
                 );
@@ -1593,6 +1594,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.phone_android,
                 keyboardType: TextInputType.phone,
                 fieldKey: 'mobileNumber',
+                maxLength: 10,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               ),
               const SizedBox(height: 20),
             ],
@@ -2391,6 +2394,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     bool? enabled,
     String? fieldKey,
     Color? fillColor,
+    int? maxLength,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     final bool isOwnProfile = widget.user == null || _loggedInMobile == widget.user!.id;
     final bool isFieldEnabled = enabled ?? (!_hasExistingProfile || _isEditUnlocked);
@@ -2404,6 +2409,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       controller: controller,
       focusNode: focusNode,
       maxLines: maxLines,
+      maxLength: maxLength,
+      inputFormatters: inputFormatters,
       onChanged: (val) {
         if (hasError) setState(() => _errorField = null);
         if (onChanged != null) onChanged(val);
@@ -2424,6 +2431,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         hintStyle: GoogleFonts.inter(color: Colors.grey[400]),
         filled: true,
         fillColor: fillColor ?? (hasError ? Colors.red.withOpacity(0.05) : (isFieldEnabled ? Colors.grey[50] : Colors.grey[100])),
+        counterText: maxLength != null ? "" : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: hasError ? Colors.red : Colors.grey[300]!, width: hasError ? 2 : 1),

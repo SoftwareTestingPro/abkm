@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'profile_screen.dart';
@@ -9,6 +10,7 @@ import '../models/models.dart';
 import '../services/supabase_service.dart';
 import '../services/logic_service.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../config/config.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -35,6 +37,7 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _isLoading = true);
     try {
       final googleSignIn = GoogleSignIn(
+        clientId: kIsWeb ? AppConfig.googleWebClientId : null,
         scopes: ['email'],
       );
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
