@@ -297,12 +297,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final ImagePicker _picker = ImagePicker();
 
+  bool _isDataInitialized = false;
+
   @override
   void initState() {
     super.initState();
-    _checkAuth();
     _stateController.text = '';
-    _loadProfileData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isDataInitialized) {
+      _isDataInitialized = true;
+      _checkAuth();
+      _loadProfileData();
+    }
   }
 
   @override
