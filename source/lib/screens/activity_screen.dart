@@ -10,6 +10,7 @@ import '../services/event_logic.dart';
 import '../services/logic_service.dart';
 import 'event_details_screen.dart';
 import 'public_profile_screen.dart';
+import '../widgets/web_image.dart';
 
 class ActivityItem {
   final String id;
@@ -729,18 +730,27 @@ class _ActivityScreenState extends State<ActivityScreen> with AutomaticKeepAlive
                               CircleAvatar(
                                 radius: 24,
                                 backgroundColor: accentColor.withOpacity(0.08),
-                                backgroundImage: imageUrl != null && imageUrl.startsWith('http')
-                                    ? NetworkImage(imageUrl) as ImageProvider
-                                    : imageUrl != null
-                                        ? MemoryImage(base64Decode(imageUrl))
-                                        : null,
+                                backgroundImage: imageUrl != null && !imageUrl.startsWith('http')
+                                    ? MemoryImage(base64Decode(imageUrl)) as ImageProvider
+                                    : null,
                                 child: imageUrl == null
                                     ? Icon(
                                         iconData,
                                         color: accentColor,
                                         size: 24,
                                       )
-                                    : null,
+                                    : imageUrl.startsWith('http')
+                                        ? GoogleProfileImage(
+                                            url: imageUrl,
+                                            width: 48,
+                                            height: 48,
+                                            fit: BoxFit.cover,
+                                            topLeft: 999,
+                                            topRight: 999,
+                                            bottomLeft: 999,
+                                            bottomRight: 999,
+                                          )
+                                        : null,
                               ),
                               if (imageUrl != null)
                                 Positioned(

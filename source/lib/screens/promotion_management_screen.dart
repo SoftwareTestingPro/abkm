@@ -6,6 +6,7 @@ import '../services/supabase_service.dart';
 import '../services/event_logic.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'public_profile_screen.dart';
+import '../widgets/web_image.dart';
 
 class PromotionManagementScreen extends StatefulWidget {
   const PromotionManagementScreen({super.key});
@@ -174,12 +175,23 @@ class _PromotionManagementScreenState extends State<PromotionManagementScreen> {
                     CircleAvatar(
                       radius: 24,
                       backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                      backgroundImage: host?.profileImageUrl != null
-                          ? (host!.profileImageUrl!.startsWith('http') 
-                              ? NetworkImage(host.profileImageUrl!) as ImageProvider
-                              : MemoryImage(base64Decode(host.profileImageUrl!)))
+                      backgroundImage: host?.profileImageUrl != null && !host!.profileImageUrl!.startsWith('http')
+                          ? MemoryImage(base64Decode(host!.profileImageUrl!)) as ImageProvider
                           : null,
-                      child: host?.profileImageUrl == null ? const Icon(Icons.person) : null,
+                      child: host?.profileImageUrl == null 
+                          ? const Icon(Icons.person) 
+                          : host!.profileImageUrl!.startsWith('http')
+                              ? GoogleProfileImage(
+                                  url: host!.profileImageUrl!,
+                                  width: 48,
+                                  height: 48,
+                                  fit: BoxFit.cover,
+                                  topLeft: 999,
+                                  topRight: 999,
+                                  bottomLeft: 999,
+                                  bottomRight: 999,
+                                )
+                              : null,
                     ),
                     const SizedBox(width: 16),
                     Expanded(

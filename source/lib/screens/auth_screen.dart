@@ -46,7 +46,21 @@ class _AuthScreenState extends State<AuthScreen> {
         return;
       }
 
-      final cloudProfile = await SupabaseService().getProfileByGoogleId(googleUser.id);
+      ABKMUser? cloudProfile = await SupabaseService().getProfileByGoogleId(googleUser.id);
+      
+      // Fallback: If not found by google_id, check if user exists with the same email
+      if (cloudProfile == null && googleUser.email.isNotEmpty) {
+        final emailProfile = await SupabaseService().getProfileByEmail(googleUser.email);
+        if (emailProfile != null) {
+          final linkedUser = emailProfile.copyWith(
+            googleId: googleUser.id,
+            email: googleUser.email,
+          );
+          await SupabaseService().upsertProfile(linkedUser);
+          cloudProfile = linkedUser;
+        }
+      }
+
       final prefs = await SharedPreferences.getInstance();
 
       if (cloudProfile != null) {

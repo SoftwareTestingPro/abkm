@@ -13,6 +13,7 @@ import '../services/event_logic.dart';
 import '../services/logic_service.dart';
 import 'public_profile_screen.dart';
 import '../widgets/bottom_nav.dart';
+import '../widgets/web_image.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final ABKMEvent event;
@@ -391,7 +392,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
                 if (_currentEvent.eventType != EventType.announcement && (isHost || _currentUserRole == UserRole.admin || _currentUserRole == UserRole.superUser)) ...[
                   const SizedBox(height: 32),
-                  _buildSectionTitle('People Attending'),
+                  _buildSectionTitle(isPast ? 'People Attended' : 'People Attending'),
                   const SizedBox(height: 12),
                   _buildAttendeesList(),
                 ],
@@ -594,14 +595,23 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               CircleAvatar(
                 radius: 24,
                 backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                backgroundImage: _hostUser!.profileImageUrl != null && _hostUser!.profileImageUrl!.startsWith('http')
-                    ? NetworkImage(_hostUser!.profileImageUrl!) as ImageProvider
-                    : (_hostUser!.profileImageUrl != null
-                        ? MemoryImage(base64Decode(_hostUser!.profileImageUrl!))
-                        : null),
+                backgroundImage: _hostUser!.profileImageUrl != null && !_hostUser!.profileImageUrl!.startsWith('http')
+                    ? MemoryImage(base64Decode(_hostUser!.profileImageUrl!)) as ImageProvider
+                    : null,
                 child: _hostUser!.profileImageUrl == null
                     ? Icon(Icons.person, color: Theme.of(context).colorScheme.primary)
-                    : null,
+                    : _hostUser!.profileImageUrl!.startsWith('http')
+                        ? GoogleProfileImage(
+                            url: _hostUser!.profileImageUrl!,
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
+                            topLeft: 999,
+                            topRight: 999,
+                            bottomLeft: 999,
+                            bottomRight: 999,
+                          )
+                        : null,
               ),
               const SizedBox(width: 12),
               Column(
@@ -668,10 +678,23 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                 CircleAvatar(
                   radius: 20,
                   backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                  backgroundImage: profile?.profileImageUrl != null && profile!.profileImageUrl!.startsWith('http')
-                      ? NetworkImage(profile.profileImageUrl!) as ImageProvider
-                      : (profile?.profileImageUrl != null ? MemoryImage(base64Decode(profile!.profileImageUrl!)) : null),
-                  child: profile?.profileImageUrl == null ? Icon(Icons.person, size: 20, color: theme.colorScheme.primary) : null,
+                  backgroundImage: profile?.profileImageUrl != null && !profile!.profileImageUrl!.startsWith('http')
+                      ? MemoryImage(base64Decode(profile!.profileImageUrl!)) as ImageProvider
+                      : null,
+                  child: profile?.profileImageUrl == null
+                      ? Icon(Icons.person, size: 20, color: theme.colorScheme.primary)
+                      : profile!.profileImageUrl!.startsWith('http')
+                          ? GoogleProfileImage(
+                              url: profile.profileImageUrl!,
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                              topLeft: 999,
+                              topRight: 999,
+                              bottomLeft: 999,
+                              bottomRight: 999,
+                            )
+                          : null,
                 ),
                 const SizedBox(width: 12),
                 Expanded(

@@ -18,6 +18,7 @@ import 'member_directory_screen.dart';
 import 'package:marquee/marquee.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/reputation_badge.dart';
+import '../widgets/web_image.dart';
 import '../services/supabase_service.dart';
 import '../services/logic_service.dart';
 import '../services/event_logic.dart';
@@ -517,14 +518,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _loadData() async {
     final bool hasData = _profiles.isNotEmpty || _events.isNotEmpty;
-    _isDiscoveryLoaded = false;
+    if (!hasData) {
+      _isDiscoveryLoaded = false;
+    }
     await _loadEssentialData(silent: hasData);
   }
 
   Future<void> _loadEssentialData({bool silent = false}) async {
     if (!mounted) return;
-    _isDiscoveryLoaded = false;
-    if (!silent) setState(() => _isLoading = true);
+    if (!silent) {
+      _isDiscoveryLoaded = false;
+      setState(() => _isLoading = true);
+    }
     
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -642,7 +647,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
         }
 
-        _loadDiscoveryData();
+        _loadDiscoveryData(silent: silent);
       } catch (dataErr) {
         debugPrint('Error loading user-specific data lists in _loadEssentialData: $dataErr');
       }
@@ -656,10 +661,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   bool _isDiscoveryLoading = false;
-  Future<void> _loadDiscoveryData() async {
-    if (_isDiscoveryLoaded || _isDiscoveryLoading || !mounted) return;
+  Future<void> _loadDiscoveryData({bool silent = false}) async {
+    if ((_isDiscoveryLoaded && !silent) || _isDiscoveryLoading || !mounted) return;
     
-    setState(() => _isDiscoveryLoading = true);
+    if (!silent) {
+      setState(() => _isDiscoveryLoading = true);
+    }
     
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -903,7 +910,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _buildAvailableABKMList() {
     final theme = Theme.of(context);
-    if (_isDiscoveryLoading || (_profiles.isEmpty && !_isDiscoveryLoaded)) {
+    if (_profiles.isEmpty && (_isDiscoveryLoading || !_isDiscoveryLoaded)) {
       return SizedBox(
         height: 260,
         child: ListView.builder(
@@ -956,7 +963,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   builder: (context) => PublicProfileScreen(user: profile),
                 ),
               ).then((result) {
-                _loadEvents();
                 if (result is int) {
                   _onBottomNavTap(result);
                 }
@@ -997,7 +1003,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                              child: profile.profileImageUrl != null
                                ? profile.profileImageUrl!.startsWith('http')
-                                 ? Image.network(profile.profileImageUrl!, fit: BoxFit.cover, width: double.infinity)
+                                 ? GoogleProfileImage(
+                                     url: profile.profileImageUrl!,
+                                     fit: BoxFit.cover,
+                                     width: double.infinity,
+                                     topLeft: 24,
+                                     topRight: 24,
+                                   )
                                  : Image.memory(base64Decode(profile.profileImageUrl!), fit: BoxFit.cover, width: double.infinity)
                                : Center(child: Icon(Icons.person, size: 50, color: theme.colorScheme.primary.withOpacity(0.2))),
                            ),
@@ -1682,7 +1694,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildWeddingEventsList() {
-    if (_isDiscoveryLoading || (_events.where((e) => e.hostId != _currentUserId && e.date.isAfter(DateTime.now())).isEmpty && !_isDiscoveryLoaded)) {
+    final upcomingEventsEmpty = _events.where((e) => e.hostId != _currentUserId && e.date.isAfter(DateTime.now())).isEmpty;
+    if (upcomingEventsEmpty && (_isDiscoveryLoading || !_isDiscoveryLoaded)) {
       return SizedBox(
         height: 235,
         child: ListView.builder(

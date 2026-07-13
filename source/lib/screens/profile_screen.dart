@@ -18,6 +18,7 @@ import '../services/logic_service.dart';
 import 'home_screen.dart';
 import 'public_profile_screen.dart';
 import '../widgets/location_selectors.dart';
+import '../widgets/web_image.dart';
 import '../widgets/reputation_badge.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -331,6 +332,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _isEditUnlocked = false;
         });
         _restoreInitialValues();
+      } else {
+        _loadProfileData();
       }
     }
   }
@@ -384,11 +387,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (!mounted) return;
-      _loggedInState = prefs.getString('abkm_userState') ?? '';
-      _loggedInMobile = prefs.getString('abkm_mobileNumber') ?? '';
-      _mobileNumber = _loggedInMobile;
-      final roleIndex = prefs.getInt('abkm_user_role') ?? 0;
-      _loggedInUserRole = UserRole.values[roleIndex];
+      setState(() {
+        _loggedInState = prefs.getString('abkm_userState') ?? '';
+        _loggedInMobile = prefs.getString('abkm_mobileNumber') ?? '';
+        _mobileNumber = _loggedInMobile;
+        final roleIndex = prefs.getInt('abkm_user_role') ?? 0;
+        _loggedInUserRole = UserRole.values[roleIndex];
+      });
 
       ABKMUser? routeUser = widget.user;
       if (routeUser == null) {
@@ -458,6 +463,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _selectedSector = u.sector.isNotEmpty ? u.sector : 'Select Sector';
         _professionController.text = u.profession;
         _educationController.text = u.education;
+        _googleId = u.googleId;
+        _email = u.email;
         
         _parseAndSetEducation(u.education);
         _parseAndSetProfession(u.sector, u.profession);
@@ -498,6 +505,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _currentUserRole = cloudProfile.userRole;
               _aadharFrontBase64 = cloudProfile.aadharFrontUrl;
               _aadharBackBase64 = cloudProfile.aadharBackUrl;
+              _googleId = cloudProfile.googleId;
+              _email = cloudProfile.email;
               debugPrint('DEBUG: Loaded cloudProfile for ${u.id}: aadharFront=${cloudProfile.aadharFrontUrl != null ? "length ${cloudProfile.aadharFrontUrl!.length}" : "null"}, aadharBack=${cloudProfile.aadharBackUrl != null ? "length ${cloudProfile.aadharBackUrl!.length}" : "null"}');
 
               if (_referralMobileController.text.isEmpty && cloudProfile.referralMobile != null) {
@@ -562,10 +571,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
              _ageController.text = cachedProfile.age.toString();
           }
           _referralCount = cachedProfile.referralCount;
-          _points = cachedProfile.points;
+           _points = cachedProfile.points;
           _lastLogin = cachedProfile.lastLogin;
           _aadharFrontBase64 = cachedProfile.aadharFrontUrl;
           _aadharBackBase64 = cachedProfile.aadharBackUrl;
+          _googleId = cachedProfile.googleId;
+          _email = cachedProfile.email;
         } catch (cacheErr) {
           debugPrint('Error parsing cached profile: $cacheErr');
         }
@@ -632,6 +643,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _lastLogin = cloudProfile.lastLogin;
           _aadharFrontBase64 = cloudProfile.aadharFrontUrl;
           _aadharBackBase64 = cloudProfile.aadharBackUrl;
+          _googleId = cloudProfile.googleId;
+          _email = cloudProfile.email;
           
           if (mounted) {
             setState(() {
@@ -1140,7 +1153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final prefs = await SharedPreferences.getInstance();
       if (!mounted) return;
       final currentLoggedInNumber = prefs.getString('abkm_mobileNumber');
-      final targetId = widget.user?.id ?? _mobileNumber;
+      final targetId = (widget.user != null && widget.user!.id.isNotEmpty) ? widget.user!.id : _mobileNumber;
       final bool isOwnProfile = targetId == currentLoggedInNumber || (_googleId != null && currentLoggedInNumber == null);
 
       if (isOwnProfile || widget.user == null) {
@@ -1512,14 +1525,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: _base64Image == null 
                       ? Icon(Icons.person, size: 60, color: theme.colorScheme.primary)
                       : _base64Image!.startsWith('http')
-                        ? ClipOval(
-                            child: Image.network(
-                              _base64Image!,
-                              width: 120,
-                              height: 120,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Icon(Icons.person, size: 60, color: theme.colorScheme.primary),
-                            ),
+                        ? GoogleProfileImage(
+                            url: _base64Image!,
+                            width: 120,
+                            height: 120,
+                            fit: BoxFit.cover,
+                            topLeft: 999,
+                            topRight: 999,
+                            bottomLeft: 999,
+                            bottomRight: 999,
                           )
                         : null,
                   ),
@@ -1893,7 +1907,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             ),
             const SizedBox(height: 40),
-            if (widget.user == null || _loggedInMobile == widget.user!.id) ...[
+            if (widget.user == null || 
+                _loggedInMobile == widget.user!.id || 
+                _loggedInUserRole == UserRole.superUser) ...[
               SizedBox(
                 width: double.infinity,
                 height: 56,
@@ -3071,17 +3087,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     style: TextStyle(color: Colors.blue[800], fontWeight: FontWeight.bold),
                                   )
                                 : u.profileImageUrl!.startsWith('http')
-                                    ? ClipOval(
-                                        child: Image.network(
-                                          u.profileImageUrl!,
-                                          width: 44,
-                                          height: 44,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) => Text(
-                                            u.name.isNotEmpty ? u.name.substring(0, 1).toUpperCase() : '?',
-                                            style: TextStyle(color: Colors.blue[800], fontWeight: FontWeight.bold),
-                                          ),
-                                        ),
+                                    ? GoogleProfileImage(
+                                        url: u.profileImageUrl!,
+                                        width: 44,
+                                        height: 44,
+                                        fit: BoxFit.cover,
+                                        topLeft: 999,
+                                        topRight: 999,
+                                        bottomLeft: 999,
+                                        bottomRight: 999,
                                       )
                                     : null,
                           ),
