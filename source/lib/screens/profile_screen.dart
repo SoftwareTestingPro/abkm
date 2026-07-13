@@ -128,10 +128,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'Patron', 
       'President', 
       'Working President', 
+      'Administrative Vice President',
       'Vice President'
     ],
     'Administrative & Secretarial': [
       'General Secretary', 
+      'Organizational General Secretary',
       'Secretary', 
       'Joint Secretary', 
       'Office Secretary'
@@ -470,6 +472,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _parseAndSetProfession(u.sector, u.profession);
         _referralMobileController.text = u.referralMobile ?? '';
         _userPosition = u.position;
+        _initializeHierarchyDropdowns();
         _maritalStatus = u.maritalStatus;
         _selectedDOB = u.dob;
         if (_selectedDOB != null) {
@@ -502,6 +505,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _parseAndSetEducation(cloudProfile.education);
               _parseAndSetProfession(cloudProfile.sector, cloudProfile.profession);
               _userPosition = cloudProfile.position;
+              _initializeHierarchyDropdowns();
               _currentUserRole = cloudProfile.userRole;
               _aadharFrontBase64 = cloudProfile.aadharFrontUrl;
               _aadharBackBase64 = cloudProfile.aadharBackUrl;
@@ -565,6 +569,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _referralMobileController.text = cachedProfile.referralMobile ?? '';
           _parseAndSetProfession(cachedProfile.sector, cachedProfile.profession);
           _userPosition = cachedProfile.position;
+          _initializeHierarchyDropdowns();
           _maritalStatus = cachedProfile.maritalStatus;
           _selectedDOB = cachedProfile.dob;
           if (_selectedDOB != null) {
@@ -633,6 +638,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _referralMobileController.text = cloudProfile.referralMobile ?? '';
           _parseAndSetProfession(cloudProfile.sector, cloudProfile.profession);
           _userPosition = cloudProfile.position;
+          _initializeHierarchyDropdowns();
           _maritalStatus = cloudProfile.maritalStatus;
           _selectedDOB = cloudProfile.dob;
           if (_selectedDOB != null) {
@@ -3275,6 +3281,102 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _initializeHierarchyDropdowns() {
+    final posStr = _userPosition.isNotEmpty ? _userPosition : _targetUser.position;
+    if (posStr.isEmpty || posStr == 'Member') {
+      _selectedCategory = 'General Membership';
+      _selectedPosition = 'Member';
+      _selectedLevel = null;
+      return;
+    }
+    
+    String? matchedCategory;
+    String? matchedPosition;
+    String? matchedLevel;
+    
+    for (final entry in _hierarchyData.entries) {
+      final category = entry.key;
+      final positions = entry.value;
+      
+      for (final pos in positions) {
+        if (posStr == pos) {
+          matchedCategory = category;
+          matchedPosition = pos;
+          matchedLevel = null;
+          break;
+        } else if (posStr.endsWith(' $pos')) {
+          final levelPart = posStr.substring(0, posStr.length - pos.length - 1);
+          if (_hierarchyLevels.contains(levelPart)) {
+            matchedCategory = category;
+            matchedPosition = pos;
+            matchedLevel = levelPart;
+            break;
+          }
+        }
+      }
+      if (matchedPosition != null) break;
+    }
+    
+    if (matchedPosition == null) {
+      matchedCategory = 'General Membership';
+      matchedPosition = 'Member';
+      matchedLevel = null;
+    }
+
+    setState(() {
+      _selectedCategory = matchedCategory;
+      _selectedPosition = matchedPosition;
+      _selectedLevel = matchedLevel;
+    });
+  }
+
+  bool _isHierarchySelectionComplete() {
+    if (_selectedCategory == null || _selectedPosition == null) return false;
+    if (_selectedCategory != 'General Membership' && _selectedLevel == null) return false;
+    return true;
+  }
+
+  bool _hasUnsavedHierarchyChanges() {
+    final posStr = _userPosition.isNotEmpty ? _userPosition : _targetUser.position;
+    
+    String? currentCategory;
+    String? currentPosition;
+    String? currentLevel;
+    
+    for (final entry in _hierarchyData.entries) {
+      final category = entry.key;
+      final positions = entry.value;
+      
+      for (final pos in positions) {
+        if (posStr == pos) {
+          currentCategory = category;
+          currentPosition = pos;
+          currentLevel = null;
+          break;
+        } else if (posStr.endsWith(' $pos')) {
+          final levelPart = posStr.substring(0, posStr.length - pos.length - 1);
+          if (_hierarchyLevels.contains(levelPart)) {
+            currentCategory = category;
+            currentPosition = pos;
+            currentLevel = levelPart;
+            break;
+          }
+        }
+      }
+      if (currentPosition != null) break;
+    }
+    
+    if (currentPosition == null) {
+      currentCategory = 'General Membership';
+      currentPosition = 'Member';
+      currentLevel = null;
+    }
+    
+    return _selectedCategory != currentCategory ||
+           _selectedPosition != currentPosition ||
+           _selectedLevel != currentLevel;
+  }
+
   Widget _buildHierarchyManagementSection(ThemeData theme) {
     bool isGeneralMembership = _selectedCategory == 'General Membership';
 
@@ -3391,71 +3493,94 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ],
           
-          if (_selectedPosition != null && (isGeneralMembership || _selectedLevel != null)) ...[
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isUpdatingPosition ? null : () async {
-                  setState(() => _isUpdatingPosition = true);
-                  try {
-                    final fullPosition = isGeneralMembership 
-                        ? _selectedPosition! 
-                        : '$_selectedLevel $_selectedPosition';
-                        
-                    await SupabaseService().updateUserPosition(_targetUser.id, fullPosition, actorId: _mobileNumber);
-                    
-                    UserRole autoRole = UserRole.moderator;
-                    if (isGeneralMembership) {
-                      autoRole = UserRole.member;
-                    } else if (fullPosition == 'State President' || fullPosition == 'National President') {
-                      autoRole = UserRole.admin;
-                    }
-                    
-                    if (_targetUser.userRole != UserRole.superUser) {
-                      if (_targetUser.userRole != autoRole) {
-                        await SupabaseService().updateUserRole(_targetUser.id, autoRole, actorId: _mobileNumber);
-                      }
-                    }
-
-                    if (mounted) {
-                      setState(() {
-                        _userPosition = fullPosition;
-                        _currentUserRole = (_targetUser.userRole == UserRole.superUser) ? UserRole.superUser : autoRole;
-                        _selectedLevel = null;
-                        _selectedCategory = null;
-                        _selectedPosition = null;
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Position updated to $fullPosition successfully')),
-                      );
-                      
-                      Future.delayed(const Duration(seconds: 1), () {
-                        if (mounted) _loadProfileData();
-                      });
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error updating position: $e')),
-                      );
-                    }
-                  } finally {
-                    if (mounted) setState(() => _isUpdatingPosition = false);
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange[800],
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _hasUnsavedHierarchyChanges() ? () {
+                    _initializeHierarchyDropdowns();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Changes discarded')),
+                    );
+                  } : null,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red[700],
+                    disabledForegroundColor: Colors.grey[400],
+                    side: BorderSide(color: _hasUnsavedHierarchyChanges() ? Colors.red[200]! : Colors.grey[200]!),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: Text('Discard', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
                 ),
-                child: _isUpdatingPosition 
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : Text('Update Member Position', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: (_isUpdatingPosition || !_isHierarchySelectionComplete() || !_hasUnsavedHierarchyChanges()) 
+                      ? null 
+                      : () async {
+                          setState(() => _isUpdatingPosition = true);
+                          try {
+                            final fullPosition = isGeneralMembership 
+                                ? _selectedPosition! 
+                                : '$_selectedLevel $_selectedPosition';
+                                
+                            await SupabaseService().updateUserPosition(_targetUser.id, fullPosition, actorId: _mobileNumber);
+                            
+                            UserRole autoRole = UserRole.moderator;
+                            if (isGeneralMembership) {
+                              autoRole = UserRole.member;
+                            } else if (fullPosition == 'State President' || fullPosition == 'National President') {
+                              autoRole = UserRole.admin;
+                            }
+                            
+                            if (_targetUser.userRole != UserRole.superUser) {
+                              if (_targetUser.userRole != autoRole) {
+                                  await SupabaseService().updateUserRole(_targetUser.id, autoRole, actorId: _mobileNumber);
+                              }
+                            }
+
+                            if (mounted) {
+                              setState(() {
+                                _userPosition = fullPosition;
+                                _currentUserRole = (_targetUser.userRole == UserRole.superUser) ? UserRole.superUser : autoRole;
+                              });
+                              _initializeHierarchyDropdowns();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Position updated to $fullPosition successfully')),
+                              );
+                              
+                              Future.delayed(const Duration(seconds: 1), () {
+                                if (mounted) _loadProfileData();
+                              });
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error updating position: $e')),
+                              );
+                            }
+                          } finally {
+                            if (mounted) setState(() => _isUpdatingPosition = false);
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange[800],
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey[200],
+                    disabledForegroundColor: Colors.grey[400],
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    elevation: 0,
+                  ),
+                  child: _isUpdatingPosition 
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : Text('Apply', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
