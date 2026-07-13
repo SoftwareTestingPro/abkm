@@ -241,7 +241,6 @@ class SupabaseService {
       }
     } else {
       await prefs.remove('abkm_full_profile_$userId');
-      await prefs.remove('abkm_cached_home_profiles');
     }
 
     final response = await client
