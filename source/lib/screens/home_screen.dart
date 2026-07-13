@@ -1016,6 +1016,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                : Center(child: Icon(Icons.person, size: 50, color: theme.colorScheme.primary.withOpacity(0.2))),
                            ),
                          ),
+                         Positioned.fill(
+                           child: Container(
+                             color: Colors.transparent,
+                           ),
+                         ),
                          Positioned(
                            bottom: 8,
                            right: 8,
