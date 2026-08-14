@@ -3,6 +3,7 @@ name: Supabase Keep Alive
 on:
   schedule:
     - cron: '0 0 * * *'
+    - cron: '0 12 * * *'
 
   workflow_dispatch:
 
@@ -13,5 +14,4 @@ jobs:
     steps:
       - name: Ping Supabase
         run: |
-          curl -f -sS \
-            "${{ secrets.https://dusxuppoolkwuaosavlt.supabase.co }}/rest/v1/keep_alive?select=id&limit=1" -H "apikey: ${{ secrets.sb_publishable_ptryFr0b7vE0j3AVOp0MBg_8CHEBoyc }}" -H "Authorization: Bearer ${{ secrets.sb_publishable_ptryFr0b7vE0j3AVOp0MBg_8CHEBoyc }}"
+          curl -f -sS "${{ secrets.SUPABASE_URL }}/rest/v1/keep_alive?select=id&limit=1" -H "apikey: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}" -H "Authorization: Bearer ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}"
