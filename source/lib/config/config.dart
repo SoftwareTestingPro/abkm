@@ -7,5 +7,5 @@ class AppConfig {
   static const String appFullName = 'अखिल भारतीय कुशवाहा महासभा';
   
   // Google OAuth Client ID (Get from Google Cloud Console)
-  static const String googleWebClientId = '718264479901-jis1jdha8fkmfh9aph3l4j32rbsmogcq.apps.googleusercontent.com';
+  static const String googleWebClientId = '718264479901-rmlnd1ad54cqr04e493n8bu8en8cosgr.apps.googleusercontent.com';
 }
