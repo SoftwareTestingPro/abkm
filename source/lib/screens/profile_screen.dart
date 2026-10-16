@@ -961,23 +961,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       try {
         final existingProfile = await SupabaseService().getProfile(inputMobile, forceRefresh: true);
         if (existingProfile != null) {
-          final linkedUser = existingProfile.copyWith(
-            googleId: _googleId,
-            email: _email,
-          );
-          await SupabaseService().upsertProfile(linkedUser);
-
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('abkm_mobileNumber', linkedUser.id);
-          await prefs.setInt('abkm_user_role', linkedUser.userRole.index);
-          await prefs.setBool('abkm_hasProfile', true);
-          await prefs.setBool('abkm_isLoggedIn', true);
-          await SupabaseService().updateLastLogin(linkedUser.id);
-
-          if (!mounted) return;
           setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Linked your Google account to existing profile!')));
-          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+          _scrollToField('mobileNumber');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('This mobile number is already registered with another account. Please use your own unique mobile number.'),
+              backgroundColor: Colors.red,
+            ),
+          );
           return;
         } else {
           // Check if the mobile belongs to a soft-deleted account that needs re-activation
