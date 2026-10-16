@@ -53,7 +53,6 @@ class _ActivityScreenState extends State<ActivityScreen> with AutomaticKeepAlive
   List<ActivityItem> _activities = ActivityScreen.cachedActivities;
   Map<String, ABKMUser> _profilesMap = ActivityScreen.cachedProfiles;
   Map<String, ABKMEvent> _eventsMap = ActivityScreen.cachedEvents;
-  DateTime? _lastLoadTime = ActivityScreen.lastGlobalLoad;
   DateTime? _lastClearedAt;
 
   @override
@@ -98,7 +97,6 @@ class _ActivityScreenState extends State<ActivityScreen> with AutomaticKeepAlive
         _activities = ActivityScreen.cachedActivities;
         _eventsMap = ActivityScreen.cachedEvents;
         _profilesMap = ActivityScreen.cachedProfiles;
-        _lastLoadTime = ActivityScreen.lastGlobalLoad;
         _isLoading = false;
       });
       return;
@@ -130,7 +128,6 @@ class _ActivityScreenState extends State<ActivityScreen> with AutomaticKeepAlive
               _eventsMap = {for (var e in cEvents) e.id: e};
               _profilesMap = {for (var p in cProfiles) p.id: p};
               _activities = cApps;
-              _lastLoadTime = DateTime.now();
               _isLoading = false;
             });
           }
@@ -326,7 +323,6 @@ class _ActivityScreenState extends State<ActivityScreen> with AutomaticKeepAlive
           _eventsMap = freshEventsMap;
           _profilesMap = freshProfilesMap;
           _activities = filteredItems;
-          _lastLoadTime = ActivityScreen.lastGlobalLoad;
           _isLoading = false;
         });
       }

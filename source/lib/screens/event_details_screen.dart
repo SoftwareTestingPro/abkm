@@ -3,14 +3,10 @@ import 'dart:ui';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
-import 'add_event_screen.dart';
-import 'manage_applications_screen.dart';
 import '../models/models.dart';
 import '../services/supabase_service.dart';
 import '../services/event_logic.dart';
-import '../services/logic_service.dart';
 import 'public_profile_screen.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/web_image.dart';
@@ -25,11 +21,9 @@ class EventDetailsScreen extends StatefulWidget {
 
 class _EventDetailsScreenState extends State<EventDetailsScreen> {
   late ABKMEvent _currentEvent;
-  List<EventApplication> _myApplications = [];
   ABKMUser? _currentUser;
   ABKMUser? _hostUser;
   bool _isLoading = true;
-  List<EventApplication> _allApplications = [];
   Map<String, ABKMUser> _applicantProfiles = {};
   UserRole _currentUserRole = UserRole.member;
   
@@ -51,20 +45,17 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       final results = await Future.wait([
         SupabaseService().getProfile(userId),
         SupabaseService().getProfile(_currentEvent.hostId),
-        SupabaseService().getApplicationsForUserForEvent(_currentEvent.id, userId),
         SupabaseService().getEventById(_currentEvent.id),
       ]);
       
       final profile = results[0] as ABKMUser?;
       final hostProfile = results[1] as ABKMUser?;
-      final applications = results[2] as List<EventApplication>;
-      final updatedEvent = results[3] as ABKMEvent?;
+      final updatedEvent = results[2] as ABKMEvent?;
       
       if (mounted) {
         setState(() {
           _currentUser = profile;
           _hostUser = hostProfile;
-          _myApplications = applications;
           if (updatedEvent != null) {
             _currentEvent = updatedEvent;
           }
@@ -95,7 +86,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         
         if (mounted) {
           setState(() {
-            _allApplications = allApps;
             _applicantProfiles = profileMap;
           });
         }
@@ -106,34 +96,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
-    }
-  }
-
-  // _joinEvent is no longer needed as we use _toggleAttendance for direct joining.
-
-  Future<void> _respondToInvitation(EventApplication app, bool accept) async {
-    setState(() => _isLoading = true);
-    await SupabaseService().respondToInvitation(app.id, accept, _currentEvent.id, app.applicantId);
-    await _loadData();
-  }
-
-  Future<void> _withdrawApplication(EventApplication app) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Withdraw Request'),
-        content: const Text('Are you sure you want to withdraw your request to join this event?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes')),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      setState(() => _isLoading = true);
-      await SupabaseService().cancelApplication(app.id, _currentEvent.id, app.applicantId);
-      await _loadData();
     }
   }
 
@@ -150,13 +112,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final activeApp = _myApplications.where((app) => 
-      app.status == ApplicationStatus.pending || 
-      app.status == ApplicationStatus.approved || 
-      app.status == ApplicationStatus.invitationPending || 
-      app.status == ApplicationStatus.invitationAccepted
-    ).firstOrNull;
 
     if (_currentEvent.eventType == EventType.announcement) {
       final now = DateTime.now();

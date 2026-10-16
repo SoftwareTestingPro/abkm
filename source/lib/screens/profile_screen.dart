@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -15,7 +14,6 @@ import 'package:intl/intl.dart';
 import '../services/supabase_service.dart';
 import '../models/models.dart';
 import '../services/logic_service.dart';
-import 'home_screen.dart';
 import 'public_profile_screen.dart';
 import '../widgets/location_selectors.dart';
 import '../widgets/web_image.dart';
@@ -121,7 +119,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isUpdatingRole = false;
   bool _isUpdatingPosition = false;
   bool _isBlockingUser = false;
-  ABKMUser? _loggedInUserProfile;
 
   final Map<String, List<String>> _hierarchyData = {
     'Core Leadership (Executive)': [
@@ -427,7 +424,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       SupabaseService().getProfile(_loggedInMobile).then((p) {
         if (mounted) {
           setState(() {
-            _loggedInUserProfile = p;
             if (p != null) {
               _loggedInState = p.state;
               _loggedInUserRole = p.userRole;
@@ -759,10 +755,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isCustomProfession = false;
       }
     }
-  }
-
-  List<String> _getRolesForGender(String gender) {
-    return []; // Roles removed
   }
 
   String _formatDateTime(DateTime? dt) {
@@ -2125,7 +2117,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final bool canSeeHostedEvents = isOwnProfile || (_loggedInUserRole == UserRole.admin || _loggedInUserRole == UserRole.superUser);
     
     final rep = getReputationLevel(points);
-    final String currentRank = 'Level ${rep.level}';
     final List<int> milestones = [0, 100, 500, 1000, 5000, 10000, 25000, 50000, 75000, 100000];
     
     String nextRank = '';
@@ -2454,7 +2445,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     int? maxLength,
     List<TextInputFormatter>? inputFormatters,
   }) {
-    final bool isOwnProfile = widget.user == null || _loggedInMobile == widget.user!.id;
     final bool isFieldEnabled = enabled ?? (!_hasExistingProfile || _isEditUnlocked);
     final hasError = _errorField == fieldKey;
     final theme = Theme.of(context);
@@ -2980,7 +2970,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        final theme = Theme.of(context);
         return Container(
           height: MediaQuery.of(context).size.height * 0.75,
           decoration: BoxDecoration(

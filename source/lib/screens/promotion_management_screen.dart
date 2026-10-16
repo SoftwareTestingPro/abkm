@@ -19,7 +19,6 @@ class _PromotionManagementScreenState extends State<PromotionManagementScreen> {
   bool _isLoading = true;
   List<ABKMEvent> _pendingEvents = [];
   Map<String, ABKMUser> _profiles = {};
-  UserRole _currentUserRole = UserRole.member;
   String? _currentUserId;
 
   @override
@@ -34,8 +33,6 @@ class _PromotionManagementScreenState extends State<PromotionManagementScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       _currentUserId = prefs.getString('abkm_user_id') ?? prefs.getString('abkm_mobileNumber');
-      final roleIndex = prefs.getInt('abkm_user_role') ?? 0;
-      _currentUserRole = UserRole.values[roleIndex];
 
       final adminProfile = await SupabaseService().getProfile(_currentUserId!, forceRefresh: false);
       

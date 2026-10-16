@@ -44,8 +44,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<EventApplication> _userApplications = [];
   List<EventApplication> _allApplications = [];
   bool _isLoading = true;
-  String _firstName = 'User';
-  String? _profileImageUrl;
   String? _currentUserId;
   final _searchController = TextEditingController();
   int _unreadActivityCount = 0;
@@ -109,7 +107,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // If logged in, proceed with heavy loads
       _checkProfile();
       _loadData();
-      _performAdminCleanup();
       _startPermissionMonitoring();
       CacheLogic.performCleanup(prefs);
     });
@@ -325,12 +322,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _performAdminCleanup() async {
-    if (_currentUserRole == UserRole.admin || _currentUserRole == UserRole.superUser) {
-      await SupabaseService().cleanupNonUPData();
-    }
-  }
-
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -471,8 +462,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         
         if (mounted) {
           setState(() {
-            _firstName = profile.name.split(' ')[0];
-            _profileImageUrl = profile.profileImageUrl;
             _currentUserRole = profile.userRole;
             // If user is a member and was on Hosting (index 0), switch to Discover
             if (_currentUserRole == UserRole.member && _selectedIndex == 0) {
@@ -493,8 +482,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           final profile = ABKMUser.fromJson(json.decode(cachedProfileData));
           if (mounted) {
             setState(() {
-              _firstName = profile.name.split(' ')[0];
-              _profileImageUrl = profile.profileImageUrl;
               _currentUserRole = profile.userRole;
               if (_currentUserRole == UserRole.member && _selectedIndex == 0) {
                 _navIndex = 0;
@@ -1803,8 +1790,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     VoidCallback? onWithdraw,
     List<EventApplication> applications = const [],
   }) {
-    final sortedApps = applications.toList()
-      ..sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
     final theme = Theme.of(context);
     final guestsConfirmed = event.approvedMemberIds.length;
     
@@ -2115,38 +2100,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildActivityIcon() {
-    return Stack(
-      children: [
-        const Icon(Icons.notifications_outlined),
-        if (_unreadActivityCount > 0)
-          Positioned(
-            right: 0,
-            top: 0,
-            child: Container(
-              padding: const EdgeInsets.all(1),
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              constraints: const BoxConstraints(
-                minWidth: 12,
-                minHeight: 12,
-              ),
-              child: Text(
-                '$_unreadActivityCount',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 8,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          )
-      ],
-    );
-  }
-
   Future<void> _logout(BuildContext context) async {
     try {
       final googleSignIn = GoogleSignIn(
@@ -2168,75 +2121,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     Navigator.of(context).pushNamedAndRemoveUntil('/auth', (route) => false);
   }
 
-  String _getStatusText(EventApplication app) {
-    if (app.isInvitation) {
-      if (app.status == ApplicationStatus.invitationPending) return 'Invitation';
-      if (app.status == ApplicationStatus.invitationAccepted) return 'Accepted';
-      if (app.status == ApplicationStatus.invitationDeclined) return 'Declined';
-    }
-    
-    if (app.isApproved) return 'Approved';
-    if (app.status == ApplicationStatus.declined) return 'Declined';
-    if (app.status == ApplicationStatus.withdrawn) return 'Withdrawn';
-    
-    return 'Pending';
-  }
-
-  Widget _buildApplicationStatusInfo(List<EventApplication> apps, {bool isPast = false}) {
-    return const SizedBox.shrink();
-  }
-
-  IconData _getStatusIcon(EventApplication app) {
-    if (app.isApproved) return Icons.check_circle;
-    if (app.status == ApplicationStatus.declined || app.status == ApplicationStatus.invitationDeclined) return Icons.cancel;
-    if (app.status == ApplicationStatus.withdrawn) return Icons.backspace;
-    return Icons.pending;
-  }
-
-  Widget _buildApplicationActionButtons(List<EventApplication> apps) {
-     if (apps.any((a) => a.isInvitation && a.status == ApplicationStatus.invitationPending)) {
-        final invite = apps.firstWhere((a) => a.isInvitation && a.status == ApplicationStatus.invitationPending);
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            TextButton(
-              onPressed: () async {
-                await SupabaseService().respondToInvitation(invite.id, false, invite.eventId, invite.applicantId);
-                _loadData();
-              },
-              child: const Text('Deny', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
-            ),
-            const SizedBox(width: 4),
-            ElevatedButton(
-              onPressed: () async {
-                await SupabaseService().respondToInvitation(invite.id, true, invite.eventId, invite.applicantId);
-                _loadData();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green, 
-                foregroundColor: Colors.white, 
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                minimumSize: const Size(0, 24),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: const Text('Accept', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        );
-     }
-     return const SizedBox.shrink();
-  }
-
-  Color _getStatusColor(EventApplication app) {
-    if (app.isInvitation && app.status == ApplicationStatus.invitationPending) return Colors.blue;
-    if (app.isApproved || app.status == ApplicationStatus.invitationAccepted) return Colors.green;
-    if (app.status == ApplicationStatus.declined || app.status == ApplicationStatus.invitationDeclined) return Colors.red;
-    if (app.status == ApplicationStatus.withdrawn) return Colors.grey;
-    return Colors.orange;
-  }
-
   Widget _buildAnnouncementCard(ABKMEvent event, {bool isHost = false}) {
-    final theme = Theme.of(context);
     return Align(
       alignment: Alignment.topCenter,
       child: Container(
@@ -2622,16 +2507,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ],
       ),
     );
-  }
-
-  Color _getRoleColor(UserRole role) {
-    switch (role) {
-      case UserRole.superUser: return Colors.purple;
-      case UserRole.admin: return Colors.red;
-      case UserRole.moderator: return Colors.blue;
-      case UserRole.member: return Colors.green;
-      case UserRole.blocked: return Colors.grey;
-    }
   }
 
   Widget _buildPatronAvatar(String assetPath, String name, String designation) {

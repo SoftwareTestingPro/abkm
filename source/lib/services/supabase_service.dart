@@ -1,5 +1,4 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
@@ -1875,11 +1874,6 @@ class SupabaseService {
     
     // Fallback: If no blocker is found, return the National President
     return await getNationalPresident();
-  }
-
-  Future<void> cleanupNonUPData() async {
-    // Disabled as app is now all India level
-    debugPrint('cleanupNonUPData: bypassed (All India level enabled)');
   }
 
   // --- Location Operations ---

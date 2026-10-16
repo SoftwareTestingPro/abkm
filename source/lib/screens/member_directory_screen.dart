@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/reputation_badge.dart';
-import 'package:marquee/marquee.dart';
 import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xlsio;
 import 'package:file_saver/file_saver.dart';
 import 'package:intl/intl.dart';
-import 'dart:convert';
 import 'dart:typed_data';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
@@ -332,8 +330,6 @@ class _MemberDirectoryScreenState extends State<MemberDirectoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
     return Scaffold(
       backgroundColor: Colors.white,
       extendBodyBehindAppBar: true,
@@ -565,16 +561,6 @@ class _MemberDirectoryScreenState extends State<MemberDirectoryScreen> {
 
   Widget _buildReputationIndicator(int points) {
     return ReputationBadge(points: points, size: 20);
-  }
-
-  Color _getRoleColor(UserRole role) {
-    switch (role) {
-      case UserRole.superUser: return Colors.purple;
-      case UserRole.admin: return Colors.red;
-      case UserRole.moderator: return Colors.orange;
-      case UserRole.blocked: return Colors.grey;
-      default: return Colors.blue;
-    }
   }
 
   void _showFilterDrawer(BuildContext context) {

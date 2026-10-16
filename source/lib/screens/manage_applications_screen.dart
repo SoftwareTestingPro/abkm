@@ -5,7 +5,6 @@ import 'dart:convert';
 import '../models/models.dart';
 import 'public_profile_screen.dart';
 import '../services/supabase_service.dart';
-import '../services/event_logic.dart';
 import '../widgets/bottom_nav.dart';
 
 class ManageApplicationsScreen extends StatefulWidget {
