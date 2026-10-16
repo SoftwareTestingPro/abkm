@@ -25,6 +25,19 @@ class SupabaseService {
   // --- Profile Operations ---
   
   Future<void> upsertProfile(ABKMUser user) async {
+    // If a google_id is present, unlink it from any other profile to prevent duplicate key constraint violations (idx_profiles_google_id)
+    if (user.googleId != null && user.googleId!.isNotEmpty) {
+      try {
+        await client
+            .from('profiles')
+            .update({'google_id': null, 'email': null})
+            .eq('google_id', user.googleId!)
+            .neq('id', user.id);
+      } catch (e) {
+        debugPrint('Non-critical: error unlinking existing google_id: $e');
+      }
+    }
+
     await client.from('profiles').upsert({
       'id': user.id,
       'name': user.name,
@@ -1726,6 +1739,8 @@ class SupabaseService {
         'position': 'Member',
         'last_login': null,
         'is_blocked': false,
+        'google_id': null,
+        'email': null,
       }).eq('id', userId);
 
       debugPrint('Soft-delete completed for $userId — referral chain preserved.');

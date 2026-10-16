@@ -980,6 +980,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
           return;
         } else {
+          // Check if the mobile belongs to a soft-deleted account that needs re-activation
+          final deleted = await SupabaseService().getDeletedProfile(inputMobile);
+          if (deleted != null) {
+            await SupabaseService().reactivateProfile(inputMobile);
+          }
           _mobileNumber = inputMobile;
           setState(() => _isLoading = false);
         }
