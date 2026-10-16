@@ -285,7 +285,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         aadharBackChanged;
   }
 
-  bool get _isReferralEditable => !_hasExistingProfile;
+  bool get _isReferralEditable => !_hasExistingProfile || (_initialReferralMobile == null || _initialReferralMobile!.trim().isEmpty);
 
   DateTime? _lastLogin;
 
@@ -1111,13 +1111,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _customDegreeController.text = FormatUtils.toTitleCase(_customDegreeController.text);
 
     final referralMobile = _referralMobileController.text.trim();
-    if (!_hasExistingProfile && referralMobile.isEmpty) {
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Referral mobile is mandatory while creating a profile')));
-      }
-      return;
-    }
+
 
     if (referralMobile.isNotEmpty) {
       if (referralMobile.length != 10) {
@@ -1694,7 +1688,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: ['Married', 'Unmarried'].map((s) => _buildMaritalStatusChip(s)).toList(),
             ),
             const SizedBox(height: 20),
-            _buildLabel('Age'),
+            _buildLabel('Date of Birth'),
             InkWell(
               onTap: (!_hasExistingProfile || _isEditUnlocked) ? () => _selectDate(context) : null,
               child: IgnorePointer(
@@ -1883,22 +1877,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
 
             const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: RichText(
-                text: TextSpan(
-                  text: 'Referral Mobile',
-                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black),
-                  children: [
-                    if (!_hasExistingProfile)
-                      const TextSpan(
-                        text: ' *',
-                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                      ),
-                  ],
-                ),
-              ),
-            ),
+            _buildLabel('Referral Mobile (Optional)', isRequired: false),
             _buildTextField(
               controller: _referralMobileController,
               hint: 'Enter 10-digit mobile number',
