@@ -1259,8 +1259,16 @@ class SupabaseService {
       isInvitation: true,
       status: ApplicationStatus.invitationPending,
     );
-    
-    await client.from('applications').insert(invitation.toJson());
+
+    await client.from('applications').insert({
+      'id': invitation.id,
+      'event_id': invitation.eventId,
+      'applicant_id': invitation.applicantId,
+      'message': invitation.message,
+      'is_approved': invitation.isApproved,
+      'status': invitation.status.index,
+      'is_invitation': invitation.isInvitation,
+    });
   }
 
   Future<void> removeMemberFromEvent(String eventId, String userId) async {
