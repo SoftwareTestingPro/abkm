@@ -150,9 +150,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _permissionCheckTimer?.cancel();
     _permissionCheckTimer = Timer.periodic(const Duration(minutes: 3), (_) {
       _syncPermissions();
-      if (_currentUserId != null) {
-        SupabaseService().updateLastLogin(_currentUserId!);
-      }
     });
   }
 
@@ -1024,12 +1021,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                              color: Colors.transparent,
                            ),
                          ),
-                         if (_isUserOnline(profile.lastLogin))
-                           Positioned(
-                             top: 8,
-                             left: 8,
-                             child: _buildOnlineBadge(),
-                           ),
                          Positioned(
                            bottom: 8,
                            right: 8,
@@ -1111,62 +1102,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           );
         },
-      ),
-    );
-  }
-
-  bool _isUserOnline(DateTime? lastLogin) {
-    if (lastLogin == null) return false;
-    final diff = DateTime.now().difference(lastLogin);
-    // Active within the last 5 minutes (accounting for small clock drift)
-    return diff.inMinutes.abs() < 5;
-  }
-
-  Widget _buildOnlineBadge() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.65),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withOpacity(0.2), width: 0.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.18),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: const BoxDecoration(
-              color: Color(0xFF00E676),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Color(0x8000E676),
-                  blurRadius: 4,
-                  spreadRadius: 1,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            'Online',
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontSize: 9.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
       ),
     );
   }
