@@ -1581,6 +1581,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
+            if ((_email != null && _email!.trim().isNotEmpty) &&
+                (widget.user == null ||
+                 _loggedInMobile == widget.user!.id ||
+                 _loggedInUserRole == UserRole.admin ||
+                 _loggedInUserRole == UserRole.superUser)) ...[
+              const SizedBox(height: 8),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.email_outlined, size: 16, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Text(
+                        _email!,
+                        style: GoogleFonts.inter(color: Colors.grey[700], fontWeight: FontWeight.w500, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Center(
               child: Container(
