@@ -1335,7 +1335,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 
                 final Uri emailUri = Uri(
                   scheme: 'mailto',
-                  path: 'automation.sushil@gmail.com',
+                  path: 'support@futurelab.co.in',
                   query: 'subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(body)}',
                 );
 
@@ -2934,7 +2934,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _policySection('5. Third-Party', 
                         'We use Supabase for database and storage.'),
                       _policySection('6. Contact', 
-                        'Questions? Contact: automation.sushil@gmail.com'),
+                        'Questions? Contact: support@futurelab.co.in'),
                     ],
                   ),
                 ),

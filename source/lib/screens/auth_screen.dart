@@ -3,12 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'profile_screen.dart';
-import 'home_screen.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
 import '../services/supabase_service.dart';
-import '../services/logic_service.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../config/config.dart';
 
@@ -20,11 +16,7 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  final _phoneController = TextEditingController();
-  final _otpController = TextEditingController();
-  bool _isOtpSent = false;
   bool _isLoading = false;
-  final String _staticOtp = "1234";
   
   @override
   void didChangeDependencies() {
@@ -102,246 +94,6 @@ class _AuthScreenState extends State<AuthScreen> {
           SnackBar(content: Text('Google Sign-In failed: ${e.toString()}')),
         );
       }
-    }
-  }
-
-  Future<void> _sendOtp() async {
-    if (_phoneController.text.length == 4) {
-      _otpController.clear();
-      setState(() => _isOtpSent = true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OTP sent: 1234 (Static)')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a 4-digit Mobile Number')),
-      );
-    }
-  }
-
-  Future<void> _verifyOtp() async {
-    if (_otpController.text == _staticOtp) {
-      FocusScope.of(context).unfocus();
-      setState(() => _isLoading = true);
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final String? oldMobileNumber = prefs.getString('abkm_mobileNumber');
-        final String currentMobileNumber = _phoneController.text;
-
-        // If a different user is logging in, clear previous local profile data
-        if (oldMobileNumber != null && oldMobileNumber != currentMobileNumber) {
-          final keysToRemove = [
-            'abkm_hasProfile', 'abkm_userName', 'abkm_userBio', 'abkm_userCity', 'abkm_userState', 
-            'abkm_userDistrict', 'abkm_userTehsil', 'abkm_userVillage', 'abkm_userSector',
-            'abkm_userProfession', 'abkm_userEducation', 
-            'abkm_userImageBase64', 'abkm_userGender', 'abkm_userAge', 'abkm_user_role'
-          ];
-          for (final key in keysToRemove) {
-            await prefs.remove(key);
-          }
-        }
-
-        await prefs.setString('abkm_mobileNumber', currentMobileNumber);
-        
-        // Check cloud profile (only returns active/non-deleted profiles)
-        final cloudProfile = await SupabaseService().getProfile(currentMobileNumber, forceRefresh: true);
-        
-        if (cloudProfile != null && cloudProfile.userRole == UserRole.blocked) {
-          if (!mounted) return;
-          setState(() => _isLoading = false);
-          
-          final blocker = await SupabaseService().getBlockerProfile(cloudProfile.id);
-          final String blockerName = blocker!.name;
-          final String blockerMobile = blocker.id;
-          final String displayPosition = FormatUtils.formatDesignation(blocker);
-          
-          if (!mounted) return;
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              title: Row(
-                children: [
-                  Icon(Icons.block, color: Colors.red[700]),
-                  const SizedBox(width: 12),
-                  Text('Account Blocked', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Your account has been blocked by the administrator.',
-                    style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[800]),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Please contact support for assistance:',
-                    style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[800]),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.blue[100]!),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Name: $blockerName ($displayPosition)',
-                          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blue[900]),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Mobile: $blockerMobile',
-                          style: GoogleFonts.inter(fontSize: 14, color: Colors.blue[800]),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        final Uri telUri = Uri.parse('tel:$blockerMobile');
-                        if (await canLaunchUrl(telUri)) {
-                          await launchUrl(telUri, mode: LaunchMode.externalApplication);
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Could not open dialer.')),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.phone, color: Colors.white),
-                      label: Text(
-                        'Call $blockerMobile',
-                        style: GoogleFonts.inter(fontWeight: FontWeight.bold),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue[700],
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        elevation: 0,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('OK', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-          );
-          return;
-        }
-
-        // ── Soft-deleted account check ────────────────────────────────
-        // getProfile returns null for both new users AND soft-deleted accounts.
-        // Check if a deleted row exists before treating this as a brand new user.
-        if (cloudProfile == null) {
-          final deletedProfile = await SupabaseService().getDeletedProfile(currentMobileNumber);
-          if (deletedProfile != null) {
-            if (!mounted) return;
-            setState(() => _isLoading = false);
-
-            final reactivate = await showDialog<bool>(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => AlertDialog(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                title: Row(
-                  children: [
-                    Icon(Icons.restore, color: Colors.orange[700]),
-                    const SizedBox(width: 12),
-                    Text('Account Found', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                content: Text(
-                  'This mobile number had a previously deleted account.\n\n'
-                  'Would you like to re-create your profile? '
-                  'Your referral chain and membership points history will be preserved.',
-                  style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[800]),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: Text('Cancel', style: GoogleFonts.inter()),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange[700],
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text('Re-create Profile', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
-            );
-
-            if (reactivate == true) {
-              if (!mounted) return;
-              setState(() => _isLoading = true);
-              await SupabaseService().reactivateProfile(currentMobileNumber);
-              await prefs.setBool('abkm_hasProfile', false);
-              await prefs.setBool('abkm_isLoggedIn', false);
-              if (!mounted) return;
-              Navigator.of(context).pushNamedAndRemoveUntil('/profile', (route) => false);
-            }
-            // else: user cancelled — stay on auth screen
-            return;
-          }
-        }
-        // ─────────────────────────────────────────────────────────────
-
-        final bool hasProfile = (cloudProfile != null);
-        await prefs.setBool('abkm_hasProfile', hasProfile);
-        await prefs.setBool('abkm_isLoggedIn', hasProfile);
-        if (cloudProfile != null) {
-          await prefs.setInt('abkm_user_role', cloudProfile.userRole.index);
-          await SupabaseService().updateLastLogin(currentMobileNumber);
-        }
-
-        if (!mounted) return;
-        
-        if (hasProfile) {
-          await Future.delayed(const Duration(milliseconds: 300));
-          if (!mounted) return;
-          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
-        } else {
-          await Future.delayed(const Duration(milliseconds: 300));
-          if (!mounted) return;
-          Navigator.of(context).pushNamedAndRemoveUntil('/profile', (route) => false);
-        }
-      } catch (e) {
-        debugPrint('Error during OTP verification: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Verification failed: ${e.toString()}')),
-          );
-        }
-      } finally {
-        if (mounted) {
-          setState(() => _isLoading = false);
-        }
-      }
-    } else {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid OTP. Use 1234')),
-      );
     }
   }
 
@@ -511,32 +263,6 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    TextInputType? keyboardType,
-    int? maxLength,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      maxLength: maxLength,
-      decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.primary),
-        hintText: hint,
-        hintStyle: GoogleFonts.inter(color: Colors.grey),
-        filled: true,
-        fillColor: Colors.grey[50],
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        counterText: "",
-      ),
-    );
-  }
-
   void _showPrivacyPolicy(BuildContext context) {
     showDialog(
       context: context,
@@ -583,14 +309,14 @@ class _AuthScreenState extends State<AuthScreen> {
                       _policySection('1. Information We Collect', 
                         'To provide a community-building experience, we collect:\n'
                         '• Personal Identity: Name, Age, Gender, Profile Image.\n'
-                        '• Contact: Mobile Number for authentication.\n'
+                        '• Contact: Mobile Number for identification and records.\n'
                         '• Community: Profession, Education, and Location.\n'
                         '• Interaction: Event applications and activities.'),
                       _policySection('2. How We Use Data', 
                         'Your information is used for:\n'
                         '• Community directory connections.\n'
                         '• Event management.\n'
-                        '• Secure mobile login.\n'
+                        '• Member identification.\n'
                         '• Feature improvements.'),
                       _policySection('3. Data Deletion', 
                         'You can delete your entire profile and associated data via Profile > Delete Profile button. This is permanent.'),
@@ -599,7 +325,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       _policySection('5. Third-Party', 
                         'We use Supabase for database and storage.'),
                       _policySection('6. Contact', 
-                        'Questions? Contact: automation.sushil@gmail.com'),
+                        'Questions? Contact: support@futurelab.co.in'),
                     ],
                   ),
                 ),
@@ -635,29 +361,6 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildButton({required String text, required VoidCallback onPressed}) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          elevation: 4,
-        ),
-        child: Text(
-          text,
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
       ),
     );
   }
