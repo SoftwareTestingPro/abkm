@@ -981,6 +981,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           return;
         } else {
           _mobileNumber = inputMobile;
+          setState(() => _isLoading = false);
         }
       } catch (e) {
         setState(() => _isLoading = false);
