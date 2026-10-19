@@ -6,15 +6,6 @@ class EventLogic {
     return event.date.isBefore(DateTime.now());
   }
 
-  /// Finds the application where the user was approved for an event.
-  static EventApplication? getApprovedApplication(List<EventApplication> applications) {
-    try {
-      return applications.firstWhere((a) => a.isApproved);
-    } catch (_) {
-      return null;
-    }
-  }
-
   /// Filters events for the host dashboard.
   static List<ABKMEvent> filterHostEvents(List<ABKMEvent> allEvents, String hostId, {required bool isPast}) {
     final now = DateTime.now();

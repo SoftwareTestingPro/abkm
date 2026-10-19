@@ -329,53 +329,7 @@ class ABKMEvent {
   );
 }
 
-enum ApplicationStatus { pending, approved, declined, withdrawn, invitationPending, invitationAccepted, invitationDeclined }
 
-class EventApplication {
-  final String id;
-  final String eventId;
-  final String applicantId;
-  final String message;
-  final bool isApproved;
-  final ApplicationStatus status;
-  final bool isInvitation;
-  final DateTime? createdAt;
-
-  EventApplication({
-    required this.id,
-    required this.eventId,
-    required this.applicantId,
-    this.message = '',
-    this.isApproved = false,
-    this.status = ApplicationStatus.pending,
-    this.isInvitation = false,
-    this.createdAt,
-  });
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'eventId': eventId,
-    'applicantId': applicantId,
-    'message': message,
-    'isApproved': isApproved,
-    'status': status.index,
-    'isInvitation': isInvitation,
-    'created_at': createdAt?.toUtc().toIso8601String(),
-  };
-
-  factory EventApplication.fromJson(Map<String, dynamic> json) => EventApplication(
-    id: json['id'],
-    eventId: json['eventId'],
-    applicantId: json['applicantId'],
-    message: json['message'] ?? '',
-    isApproved: json['isApproved'] ?? false,
-    status: (json['status'] ?? 0) < ApplicationStatus.values.length 
-        ? ApplicationStatus.values[json['status'] ?? 0] 
-        : ApplicationStatus.pending,
-    isInvitation: json['isInvitation'] ?? false,
-    createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'].toString().endsWith('Z') || json['created_at'].toString().contains('+') || json['created_at'].toString().contains(RegExp(r'-\d{2}:\d{2}$')) ? json['created_at'] : '${json['created_at']}Z').toLocal() : null,
-  );
-}
 
 enum PromotionStatus { pending, approved, declined }
 

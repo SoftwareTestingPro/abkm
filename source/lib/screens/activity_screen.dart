@@ -154,7 +154,7 @@ class _ActivityScreenState extends State<ActivityScreen> with AutomaticKeepAlive
             rawData: item,
           ));
 
-          if (type == 'application' || type == 'event') {
+          if (type == 'event') {
             final e = item['events'];
             if (e != null) {
               final event = ABKMEvent(
@@ -191,24 +191,6 @@ class _ActivityScreenState extends State<ActivityScreen> with AutomaticKeepAlive
                 );
                 freshProfilesMap[host.id] = host;
               }
-            }
-
-            final a = item['applicant'];
-            if (a != null) {
-              final applicant = ABKMUser(
-                id: a['id'] ?? '',
-                name: a['name'] ?? 'Anonymous',
-                gender: a['gender'] ?? 'Other',
-                userRole: (a['user_role'] ?? 1) < UserRole.values.length ? UserRole.values[a['user_role'] ?? 1] : UserRole.member,
-                bio: a['bio'] ?? '',
-                profileImageUrl: a['profile_image_url'],
-                village: a['village'] ?? a['city'] ?? '',
-                district: a['district'] ?? '',
-                state: a['state'] ?? '',
-                profession: a['profession'] ?? '',
-                education: a['education'] ?? '',
-              );
-              freshProfilesMap[applicant.id] = applicant;
             }
           } else if (type == 'promotion') {
             final t = item['target'];
@@ -481,86 +463,7 @@ class _ActivityScreenState extends State<ActivityScreen> with AutomaticKeepAlive
       }
     }
 
-    // Default application message
-    final rawApp = item.rawData;
-    final event = _eventsMap[rawApp['event_id']];
-    if (event == null) return 'Activity updated';
-    
-    final applicant = _profilesMap[rawApp['applicant_id']];
-    final host = _profilesMap[event.hostId];
-    
-    final applicantName = applicant?.name.split(' ')[0] ?? 'Someone';
-    final hostName = host?.name.split(' ')[0] ?? 'Someone';
-    final eventTitle = event.title;
-    final status = (rawApp['status'] ?? 0) < ApplicationStatus.values.length ? ApplicationStatus.values[rawApp['status'] ?? 0] : ApplicationStatus.pending;
-    final isInvitation = rawApp['is_invitation'] ?? false;
-    
-    String msg = '';
-
-    if (rawApp['applicant_id'] == _currentUserId) {
-      if (isInvitation) {
-        if (status == ApplicationStatus.invitationPending) {
-          msg = 'Invited by $hostName to join "$eventTitle"';
-        } else if (status == ApplicationStatus.invitationAccepted) {
-          msg = 'Accepted invitation to "$eventTitle"';
-        } else if (status == ApplicationStatus.invitationDeclined) {
-          msg = 'Declined invitation to "$eventTitle"';
-        }
-      } else {
-        if (status == ApplicationStatus.pending) {
-          msg = 'Request to join "$eventTitle" pending';
-        } else if (status == ApplicationStatus.approved) {
-          msg = 'Approved to join "$eventTitle"!';
-        } else if (status == ApplicationStatus.declined) {
-          msg = 'Request to join "$eventTitle" declined';
-        } else if (status == ApplicationStatus.withdrawn) {
-          msg = 'Withdrew request for "$eventTitle"';
-        }
-      }
-    } else if (event.hostId == _currentUserId) {
-      if (isInvitation) {
-        if (status == ApplicationStatus.invitationPending) {
-          msg = 'Invited $applicantName to join "$eventTitle"';
-        } else if (status == ApplicationStatus.invitationAccepted) {
-          msg = '$applicantName accepted invitation to "$eventTitle"';
-        } else if (status == ApplicationStatus.invitationDeclined) {
-          msg = '$applicantName declined invitation to "$eventTitle"';
-        }
-      } else {
-        if (status == ApplicationStatus.pending) {
-          msg = '$applicantName wants to join "$eventTitle"';
-        } else if (status == ApplicationStatus.approved) {
-          msg = 'Approved $applicantName for "$eventTitle"';
-        } else if (status == ApplicationStatus.declined) {
-          msg = 'Declined $applicantName for "$eventTitle"';
-        } else if (status == ApplicationStatus.withdrawn) {
-          msg = '$applicantName withdrew request for "$eventTitle"';
-        }
-      }
-    } else {
-      // General view for system-wide applications (Admins/Super Admins)
-      if (isInvitation) {
-        if (status == ApplicationStatus.invitationPending) {
-          msg = '$hostName invited $applicantName to "$eventTitle"';
-        } else if (status == ApplicationStatus.invitationAccepted) {
-          msg = '$applicantName accepted $hostName\'s invite to "$eventTitle"';
-        } else if (status == ApplicationStatus.invitationDeclined) {
-          msg = '$applicantName declined $hostName\'s invite to "$eventTitle"';
-        }
-      } else {
-        if (status == ApplicationStatus.pending) {
-          msg = '$applicantName wants to join "$eventTitle"';
-        } else if (status == ApplicationStatus.approved) {
-          msg = '$applicantName approved for "$eventTitle"';
-        } else if (status == ApplicationStatus.declined) {
-          msg = '$applicantName declined for "$eventTitle"';
-        } else if (status == ApplicationStatus.withdrawn) {
-          msg = '$applicantName withdrew request for "$eventTitle"';
-        }
-      }
-    }
-    if (msg.isEmpty) msg = 'Activity on $eventTitle';
-    return msg;
+    return 'Activity updated';
   }
 
   String _getActivityCategory(ActivityItem item) {
@@ -576,7 +479,7 @@ class _ActivityScreenState extends State<ActivityScreen> with AutomaticKeepAlive
       }
       return 'Event';
     }
-    return 'Join Request';
+    return 'Activity';
   }
 
   Color _getCategoryColor(String category) {
@@ -589,7 +492,6 @@ class _ActivityScreenState extends State<ActivityScreen> with AutomaticKeepAlive
         return const Color(0xFF2563EB); // Royal Blue
       case 'System':
         return const Color(0xFFE11D48); // Rose
-      case 'Join Request':
       default:
         return const Color(0xFF059669); // Emerald
     }
@@ -605,7 +507,6 @@ class _ActivityScreenState extends State<ActivityScreen> with AutomaticKeepAlive
         return const Color(0xFFEFF6FF); // Light Blue
       case 'System':
         return const Color(0xFFFFF1F2); // Light Rose
-      case 'Join Request':
       default:
         return const Color(0xFFECFDF5); // Light Emerald
     }
@@ -644,12 +545,7 @@ class _ActivityScreenState extends State<ActivityScreen> with AutomaticKeepAlive
       }
       if (logType == 'position_updated') return Icons.badge_rounded;
     }
-    // Join requests / applications
-    final rawApp = item.rawData;
-    final status = (rawApp['status'] ?? 0) < ApplicationStatus.values.length ? ApplicationStatus.values[rawApp['status'] ?? 0] : ApplicationStatus.pending;
-    if (status == ApplicationStatus.approved) return Icons.check_circle_rounded;
-    if (status == ApplicationStatus.declined) return Icons.cancel_rounded;
-    return Icons.person_add_rounded;
+    return Icons.notifications_active_rounded;
   }
 
   Map<String, List<ActivityItem>> _groupActivities(List<ActivityItem> items) {
@@ -933,18 +829,6 @@ class _ActivityScreenState extends State<ActivityScreen> with AutomaticKeepAlive
           final event = _eventsMap[item.rawData['id'].toString()];
           if (event != null) {
             otherPerson = _profilesMap[event.hostId];
-            imageUrl = otherPerson?.profileImageUrl;
-            onTap = () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => EventDetailsScreen(event: event)),
-              );
-            };
-          }
-        } else {
-          final event = _eventsMap[item.rawData['event_id']];
-          if (event != null) {
-            otherPerson = (item.rawData['applicant_id'] == _currentUserId) ? _profilesMap[event.hostId] : _profilesMap[item.rawData['applicant_id']];
             imageUrl = otherPerson?.profileImageUrl;
             onTap = () {
               Navigator.push(

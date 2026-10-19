@@ -71,19 +71,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         }
         final Map<String, ABKMUser> profileMap = {for (var p in profilesResults) p.id: p};
         
-        List<EventApplication> allApps = [];
-        if (userId == _currentEvent.hostId) {
-          allApps = await SupabaseService().getApplicationsForEvent(_currentEvent.id);
-          // Also fetch profiles for applicants
-          final applicantIds = allApps.map((a) => a.applicantId).toList();
-          if (applicantIds.isNotEmpty) {
-            final applicantProfiles = await SupabaseService().getProfilesByIds(applicantIds);
-            for (var p in applicantProfiles) {
-              profileMap[p.id] = p;
-            }
-          }
-        }
-        
         if (mounted) {
           setState(() {
             _applicantProfiles = profileMap;

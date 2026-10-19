@@ -115,7 +115,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool _isEditUnlocked = false;
 
-  List<ABKMEvent> _myEvents = [];
   bool _isUpdatingRole = false;
   bool _isUpdatingPosition = false;
   bool _isBlockingUser = false;
@@ -429,14 +428,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _loggedInUserRole = p.userRole;
               prefs.setInt('abkm_user_role', p.userRole.index);
             }
-          });
-        }
-      });
-
-      SupabaseService().getEventsByHost(_loggedInMobile).then((events) {
-        if (mounted) {
-          setState(() {
-            _myEvents = events.where((e) => e.isApproved).toList();
           });
         }
       });
@@ -1995,21 +1986,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         _buildAccountSecuritySection(theme),
                         const SizedBox(height: 24),
                       ],
-                      if (_myEvents.isNotEmpty)
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton.icon(
-                            onPressed: _showInviteDialog,
-                            icon: const Icon(Icons.mail_outline),
-                            label: Text('Invite to Join Event', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: theme.colorScheme.primary,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            ),
-                          ),
-                        ),
                     ],
                   );
                 }
@@ -3654,74 +3630,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Future<void> _showInviteDialog() async {
-    if (_myEvents.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This user is already part of your events.')),
-      );
-      return;
-    }
-
-    ABKMEvent? selectedEvent = _myEvents[0];
-
-    await showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text('Invite to Join Event', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Select an event to invite this user to:', style: GoogleFonts.inter(fontSize: 14)),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<ABKMEvent>(
-                value: selectedEvent,
-                items: _myEvents.map((e) => DropdownMenuItem(
-                  value: e,
-                  child: Text(e.title, style: GoogleFonts.inter(fontSize: 14)),
-                )).toList(),
-                onChanged: (val) => setDialogState(() => selectedEvent = val),
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: selectedEvent == null ? null : () async {
-                try {
-                  await SupabaseService().sendInvitation(
-                    eventId: selectedEvent!.id,
-                    hostId: _mobileNumber,
-                    applicantId: _targetUser.id,
-                  );
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Invitation sent for ${selectedEvent!.title}')),
-                    );
-                  }
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
-                  );
-                }
-              },
-              child: const Text('Send Invite'),
-            ),
-          ],
-        ),
       ),
     );
   }

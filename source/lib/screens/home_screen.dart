@@ -41,8 +41,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<ABKMEvent> _filteredEvents = [];
   List<ABKMUser> _profiles = [];
   List<ABKMUser> _filteredProfiles = [];
-  List<EventApplication> _userApplications = [];
-  List<EventApplication> _allApplications = [];
   bool _isLoading = true;
   String? _currentUserId;
   final _searchController = TextEditingController();
@@ -435,13 +433,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final cachedEvents = prefs.getString('abkm_cached_home_events');
         final cachedProfiles = prefs.getString('abkm_cached_home_profiles');
         
-        if (cachedApps != null || cachedEvents != null || cachedProfiles != null) {
+        if (cachedEvents != null || cachedProfiles != null) {
           try {
-            final appsList = cachedApps != null ? jsonDecode(cachedApps) as List : [];
             final eventsList = cachedEvents != null ? jsonDecode(cachedEvents) as List : [];
             final profilesList = cachedProfiles != null ? jsonDecode(cachedProfiles) as List : [];
 
-            final cApps = appsList.map((e) => EventApplication.fromJson(e)).toList();
             final cEvents = eventsList.map((e) => ABKMEvent.fromJson(e)).toList();
             final cProfiles = profilesList
                 .map((p) => ABKMUser.fromJson(p))
@@ -451,7 +447,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               setState(() {
                 _events = cEvents;
                 _profiles = cProfiles;
-                _userApplications = cApps;
                 _isLoading = false;
               });
             }
@@ -568,7 +563,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final cachedApps = prefs.getString('abkm_cached_essential_user_apps');
       final cachedHostApps = prefs.getString('abkm_cached_essential_host_apps');
 
-      if (cachedHosted != null || cachedParticipated != null || cachedApps != null || cachedHostApps != null) {
+      if (cachedHosted != null || cachedParticipated != null) {
         setState(() {
           final List<ABKMEvent> cEvents = [];
           if (cachedHosted != null) cEvents.addAll((json.decode(cachedHosted) as List).map((e) => ABKMEvent.fromJson(e)).toList());
@@ -576,12 +571,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           
           final Map<String, ABKMEvent> eventMap = {for (var e in cEvents) e.id: e};
           _events = eventMap.values.toList();
-          
-          if (cachedApps != null) _userApplications = (json.decode(cachedApps) as List).map((e) => EventApplication.fromJson(e)).toList();
-          
-          final List<EventApplication> hApps = [];
-          if (cachedHostApps != null) hApps.addAll((json.decode(cachedHostApps) as List).map((e) => EventApplication.fromJson(e)).toList());
-          _allApplications = [..._userApplications, ...hApps];
           
           _isLoading = false; // Show cached data immediately
         });
@@ -591,20 +580,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final results = await Future.wait([
           SupabaseService().getEventsByHost(currentUserId).timeout(const Duration(seconds: 15)),
           SupabaseService().getEventsParticipated(currentUserId).timeout(const Duration(seconds: 15)),
-          SupabaseService().getApplicationsForUser(currentUserId).timeout(const Duration(seconds: 15)),
-          SupabaseService().getApplicationsByHost(currentUserId).timeout(const Duration(seconds: 15)),
         ]);
 
         final hostedEvents = results[0] as List<ABKMEvent>;
         final participatedEvents = results[1] as List<ABKMEvent>;
-        final userApps = results[2] as List<EventApplication>;
-        final appsByMeAsHost = results[3] as List<EventApplication>;
 
         // Cache the results for next launch
         await prefs.setString('abkm_cached_essential_hosted_events', json.encode(hostedEvents.map((e) => e.toJson()).toList()));
         await prefs.setString('abkm_cached_essential_participated_events', json.encode(participatedEvents.map((e) => e.toJson()).toList()));
-        await prefs.setString('abkm_cached_essential_user_apps', json.encode(userApps.map((a) => a.toJson()).toList()));
-        await prefs.setString('abkm_cached_essential_host_apps', json.encode(appsByMeAsHost.map((a) => a.toJson()).toList()));
 
         if (mounted) {
           setState(() {
@@ -613,14 +596,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             for (var e in participatedEvents) eventMap[e.id] = e;
             
             _events = eventMap.values.toList();
-            _userApplications = userApps;
-            _allApplications = [...userApps, ...appsByMeAsHost];
             
             _applyInitialFiltering(currentUserId);
-            
-            final activityCount = _allApplications.length;
-            final lastViewed = prefs.getInt('abkm_lastViewedActivityCount') ?? 0;
-            _unreadActivityCount = activityCount > lastViewed ? activityCount - lastViewed : 0;
             
             _lastEssentialLoad = DateTime.now();
           });
@@ -1739,7 +1716,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         itemCount: futureEvents.length,
         itemBuilder: (context, index) {
           final event = futureEvents[index];
-          final eventApps = _userApplications.where((a) => a.eventId == event.id).toList();
           return GestureDetector(
             onTap: () => Navigator.of(context).push<dynamic>(
               MaterialPageRoute(builder: (context) => EventDetailsScreen(event: event)),
@@ -1749,7 +1725,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 _onBottomNavTap(result);
               }
             }),
-            child: _buildModernEventCard(event, applications: eventApps),
+            child: _buildModernEventCard(event),
           );
         },
       ),
@@ -1788,7 +1764,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     bool isPast = false, 
     bool isApproved = false, 
     VoidCallback? onWithdraw,
-    List<EventApplication> applications = const [],
   }) {
     final theme = Theme.of(context);
     final guestsConfirmed = event.approvedMemberIds.length;
@@ -2003,18 +1978,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _handleActivityClick() async {
-    final prefs = await SharedPreferences.getInstance();
-    int currentTotal = 0;
-    for (var app in _allApplications) {
-      final event = _events.firstWhere((e) => e.id == app.eventId, orElse: () => ABKMEvent(id: 'dummy', hostId: '', title: '', description: '', date: DateTime.now(), village: '', eventType: EventType.other, imageUrl: '', district: '', state: ''));
-      if (event.id != 'dummy' && (app.applicantId == _currentUserId || event.hostId == _currentUserId)) {
-        currentTotal++;
-      }
-    }
-    await prefs.setInt('abkm_lastViewedActivityCount', currentTotal);
-    
     final now = DateTime.now();
-    if (_lastEssentialLoad == null || now.difference(_lastEssentialLoad!).inMinutes >= 2 || _unreadActivityCount > 0) {
+    if (_lastEssentialLoad == null || now.difference(_lastEssentialLoad!).inMinutes >= 2) {
       _loadEssentialData(); 
     }
   }
