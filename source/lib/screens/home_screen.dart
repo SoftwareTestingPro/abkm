@@ -24,6 +24,7 @@ import '../services/logic_service.dart';
 import '../services/event_logic.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/config.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -2074,6 +2075,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       await googleSignIn.signOut();
     } catch (e) {
       debugPrint('Error signing out from Google: $e');
+    }
+    try {
+      await Supabase.instance.client.auth.signOut();
+    } catch (e) {
+      debugPrint('Error signing out from Supabase: $e');
     }
     final prefs = await SharedPreferences.getInstance();
     final keys = prefs.getKeys();

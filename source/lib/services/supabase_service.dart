@@ -559,12 +559,21 @@ class SupabaseService {
         debugPrint('Error fetching old role before update: $e');
       }
 
-      final response = await client.from('profiles').update({
-        'user_role': newRole.index
-      }).eq('id', userId).select();
-      
-      if ((response as List).isEmpty) {
-        debugPrint('Update failed for user $userId: No rows affected. Check permissions/ID.');
+      // Attempt secure backend RPC first; fallback to direct table update if RPC not yet created
+      try {
+        await client.rpc('admin_update_user_role', params: {
+          'target_user_id': userId,
+          'new_role_index': newRole.index,
+        });
+      } catch (rpcErr) {
+        debugPrint('RPC admin_update_user_role notice/fallback: $rpcErr');
+        final response = await client.from('profiles').update({
+          'user_role': newRole.index
+        }).eq('id', userId).select();
+        
+        if ((response as List).isEmpty) {
+          debugPrint('Update failed for user $userId: No rows affected. Check permissions/ID.');
+        }
       }
       
       final String? finalActorId = actorId ?? (await SharedPreferences.getInstance()).getString('abkm_user_id');
@@ -597,12 +606,22 @@ class SupabaseService {
   Future<void> updateUserPosition(String userId, String newPosition, {String? actorId}) async {
     try {
       debugPrint('Updating user $userId position to: $newPosition');
-      final response = await client.from('profiles').update({
-        'position': newPosition
-      }).eq('id', userId).select();
+      
+      // Attempt secure backend RPC first; fallback to direct update
+      try {
+        await client.rpc('admin_update_user_position', params: {
+          'target_user_id': userId,
+          'new_position': newPosition,
+        });
+      } catch (rpcErr) {
+        debugPrint('RPC admin_update_user_position notice/fallback: $rpcErr');
+        final response = await client.from('profiles').update({
+          'position': newPosition
+        }).eq('id', userId).select();
 
-      if ((response as List).isEmpty) {
-        debugPrint('Update failed for user $userId: No rows affected. Check permissions/ID.');
+        if ((response as List).isEmpty) {
+          debugPrint('Update failed for user $userId: No rows affected. Check permissions/ID.');
+        }
       }
 
       final String? finalActorId = actorId ?? (await SharedPreferences.getInstance()).getString('abkm_user_id');
@@ -633,10 +652,19 @@ class SupabaseService {
 
   Future<void> toggleUserBlockStatus(String userId, bool isBlocked, {String? actorId}) async {
     try {
-      await client.from('profiles').update({
-        'is_blocked': isBlocked,
-        'blocked_by': isBlocked ? actorId : null,
-      }).eq('id', userId);
+      // Attempt secure backend RPC first; fallback to direct update
+      try {
+        await client.rpc('admin_toggle_user_block', params: {
+          'target_user_id': userId,
+          'block_status': isBlocked,
+        });
+      } catch (rpcErr) {
+        debugPrint('RPC admin_toggle_user_block notice/fallback: $rpcErr');
+        await client.from('profiles').update({
+          'is_blocked': isBlocked,
+          'blocked_by': isBlocked ? actorId : null,
+        }).eq('id', userId);
+      }
       
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('abkm_full_profile_$userId');
@@ -727,7 +755,13 @@ class SupabaseService {
   }
 
   Future<List<ABKMUser>> getProfiles({String? state, int? limit}) async {
-    var query = client.from('profiles').select().or('is_deleted.eq.false,is_deleted.is.null');
+    // Explicitly omit sensitive PII (Aadhaar images) from batch directory queries
+    var query = client.from('profiles').select('''
+      id, name, gender, marital_status, dob, user_role, bio, 
+      profile_image_url, state, district, tehsil, village, 
+      sector, profession, education, referral_mobile, position, 
+      is_blocked, is_deleted, last_login, blocked_by, google_id, email
+    ''').or('is_deleted.eq.false,is_deleted.is.null');
     if (state != null) {
       query = query.eq('state', state);
     }

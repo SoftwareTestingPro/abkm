@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/supabase_service.dart';
 import '../models/models.dart';
 import '../services/logic_service.dart';
@@ -1450,6 +1451,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       await googleSignIn.signOut();
                     } catch (e) {
                       debugPrint('Error signing out from Google: $e');
+                    }
+                    try {
+                      await Supabase.instance.client.auth.signOut();
+                    } catch (e) {
+                      debugPrint('Error signing out from Supabase: $e');
                     }
                     final prefs = await SharedPreferences.getInstance();
                     final keys = prefs.getKeys();

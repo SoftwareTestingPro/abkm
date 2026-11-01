@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import '../services/supabase_service.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/config.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -30,12 +31,28 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       final googleSignIn = GoogleSignIn(
         clientId: kIsWeb ? AppConfig.googleWebClientId : null,
+        serverClientId: AppConfig.googleWebClientId,
         scopes: ['email'],
       );
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
         setState(() => _isLoading = false);
         return;
+      }
+
+      // Authenticate with Supabase Auth using the Google ID Token
+      try {
+        final googleAuth = await googleUser.authentication;
+        if (googleAuth.idToken != null) {
+          await Supabase.instance.client.auth.signInWithIdToken(
+            provider: OAuthProvider.google,
+            idToken: googleAuth.idToken!,
+            accessToken: googleAuth.accessToken,
+          );
+          debugPrint('Supabase Auth session established successfully for ${googleUser.email}');
+        }
+      } catch (authErr) {
+        debugPrint('Supabase signInWithIdToken warning/fallback: $authErr');
       }
 
       ABKMUser? cloudProfile = await SupabaseService().getProfileByGoogleId(googleUser.id);
