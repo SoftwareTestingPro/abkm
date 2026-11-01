@@ -55,3 +55,7 @@ source/android/app/release
 *.keystore
 key.properties
 source/android/key.properties
+
+# Local SQL migrations & utility scripts (hidden from Git)
+scripts/
+source/scripts/
